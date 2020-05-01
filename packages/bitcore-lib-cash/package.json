@@ -10,7 +10,9 @@
     "test:ci": "npm run test",
     "coverage": "gulp coverage",
     "build": "gulp",
-    "pub": "npm run build && npm publish"
+    "pub": "npm run build && npm publish",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "keywords": [
     "bitcoin",
@@ -42,7 +44,8 @@
     "buffer-compare": "=1.1.1",
     "elliptic": "=6.4.0",
     "inherits": "=2.0.1",
-    "lodash": "=4.17.15"
+    "lodash": "=4.17.15",
+    "snyk": "^1.316.1"
   },
   "devDependencies": {
     "base-x": "=3.0.4",
@@ -53,5 +56,6 @@
     "sinon": "^7.1.1"
   },
   "license": "MIT",
-  "gitHead": "012cc0216a9bc6b195035855bd17149bad41acd1"
+  "gitHead": "012cc0216a9bc6b195035855bd17149bad41acd1",
+  "snyk": true
 }
