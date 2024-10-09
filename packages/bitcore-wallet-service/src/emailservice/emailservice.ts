@@ -1,13 +1,11 @@
 #!/usr/bin/env node
-
-var config = require('../config');
-const EmailService = require('../lib/emailservice');
-const log = require('npmlog');
-log.debug = log.verbose;
+import config from '../config';
+import { EmailService } from '../lib/emailservice';
+import logger from '../lib/logger';
 
 const emailService = new EmailService();
-emailService.start(config, (err) => {
+emailService.start(config, err => {
   if (err) throw err;
 
-  console.log('Email service started');
+  logger.info('Email service started');
 });

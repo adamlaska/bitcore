@@ -1,98 +1,131 @@
-import { CSP } from '../../types/namespaces/ChainStateProvider';
-import { Chain } from '../../types/ChainNetwork';
+import { ChainNetwork } from '../../types/ChainNetwork';
+import {
+  BroadcastTransactionParams,
+  ChainStateServices,
+  CreateWalletParams,
+  DailyTransactionsParams,
+  GetBalanceForAddressParams,
+  GetBlockBeforeTimeParams,
+  GetBlockParams,
+  GetEstimatePriorityFeeParams,
+  GetEstimateSmartFeeParams,
+  GetWalletBalanceAtTimeParams,
+  GetWalletBalanceParams,
+  GetWalletParams,
+  IChainStateProvider,
+  IChainStateService,
+  StreamAddressUtxosParams,
+  StreamBlocksParams,
+  StreamTransactionParams,
+  StreamTransactionsParams,
+  StreamWalletAddressesParams,
+  StreamWalletTransactionsParams,
+  StreamWalletUtxosParams,
+  UpdateWalletParams,
+  WalletCheckParams
+} from '../../types/namespaces/ChainStateProvider';
 
-const services: CSP.ChainStateServices = {};
+const services: ChainStateServices = {};
 
-class ChainStateProxy implements CSP.ChainStateProvider {
-  get({ chain }: Chain) {
-    if (services[chain] == undefined) {
-      throw new Error(`Chain ${chain} doesn't have a ChainStateProvider registered`);
+class ChainStateProxy implements IChainStateProvider {
+  get({ chain, network }: ChainNetwork) {
+    if (services[chain]?.[network] == undefined) {
+      throw new Error(`Chain ${chain}:${network} doesn't have a ChainStateProvider registered`);
     }
-    return services[chain];
+    return services[chain][network];
   }
 
-  streamAddressUtxos(params: CSP.StreamAddressUtxosParams) {
+  streamAddressUtxos(params: StreamAddressUtxosParams) {
     return this.get(params).streamAddressUtxos(params);
   }
 
-  streamAddressTransactions(params: CSP.StreamAddressUtxosParams) {
+  streamAddressTransactions(params: StreamAddressUtxosParams) {
     return this.get(params).streamAddressTransactions(params);
   }
 
-  async getBalanceForAddress(params: CSP.GetBalanceForAddressParams) {
+  async getBalanceForAddress(params: GetBalanceForAddressParams) {
     return this.get(params).getBalanceForAddress(params);
   }
 
-  async getBlock(params: CSP.GetBlockParams) {
+  async getBlock(params: GetBlockParams) {
     return this.get(params).getBlock(params);
   }
 
-  streamBlocks(params: CSP.StreamBlocksParams) {
+  async getBlockBeforeTime(params: GetBlockBeforeTimeParams) {
+    return this.get(params).getBlockBeforeTime(params);
+  }
+
+  streamBlocks(params: StreamBlocksParams) {
     return this.get(params).streamBlocks(params);
   }
 
-  streamTransactions(params: CSP.StreamTransactionsParams) {
+  streamTransactions(params: StreamTransactionsParams) {
     return this.get(params).streamTransactions(params);
   }
 
-  getAuthhead(params: CSP.StreamTransactionParams) {
+  getAuthhead(params: StreamTransactionParams) {
     return this.get(params).getAuthhead(params);
   }
 
-  getDailyTransactions(params: CSP.DailyTransactionsParams) {
+  getDailyTransactions(params: DailyTransactionsParams) {
     return this.get(params).getDailyTransactions(params);
   }
 
-  getTransaction(params: CSP.StreamTransactionParams) {
+  getTransaction(params: StreamTransactionParams) {
     return this.get(params).getTransaction(params);
   }
 
-  async createWallet(params: CSP.CreateWalletParams) {
+  async createWallet(params: CreateWalletParams) {
     return this.get(params).createWallet(params);
   }
 
-  async getWallet(params: CSP.GetWalletParams) {
+  async getWallet(params: GetWalletParams) {
     return this.get(params).getWallet(params);
   }
 
-  streamWalletAddresses(params: CSP.StreamWalletAddressesParams) {
+  streamWalletAddresses(params: StreamWalletAddressesParams) {
     return this.get(params).streamWalletAddresses(params);
   }
 
-  walletCheck(params: CSP.WalletCheckParams) {
+  walletCheck(params: WalletCheckParams) {
     return this.get(params).walletCheck(params);
   }
 
-  async updateWallet(params: CSP.UpdateWalletParams) {
+  async updateWallet(params: UpdateWalletParams) {
     return this.get(params).updateWallet(params);
   }
 
-  streamWalletTransactions(params: CSP.StreamWalletTransactionsParams) {
+  streamWalletTransactions(params: StreamWalletTransactionsParams) {
     return this.get(params).streamWalletTransactions(params);
   }
 
-  async getWalletBalance(params: CSP.GetWalletBalanceParams) {
+  async getWalletBalance(params: GetWalletBalanceParams) {
     return this.get(params).getWalletBalance(params);
   }
 
-  async getWalletBalanceAtTime(params: CSP.GetWalletBalanceAtTimeParams) {
+  async getWalletBalanceAtTime(params: GetWalletBalanceAtTimeParams) {
     return this.get(params).getWalletBalanceAtTime(params);
   }
 
-  async getFee(params: CSP.GetEstimateSmartFeeParams) {
+  async getFee(params: GetEstimateSmartFeeParams) {
     return this.get(params).getFee(params);
   }
 
-  streamWalletUtxos(params: CSP.StreamWalletUtxosParams) {
+  async getPriorityFee(params: GetEstimatePriorityFeeParams) {
+    return this.get(params).getPriorityFee?.(params);
+  }
+
+  streamWalletUtxos(params: StreamWalletUtxosParams) {
     return this.get(params).streamWalletUtxos(params);
   }
 
-  async broadcastTransaction(params: CSP.BroadcastTransactionParams) {
+  async broadcastTransaction(params: BroadcastTransactionParams) {
     return this.get(params).broadcastTransaction(params);
   }
 
-  registerService(currency: string, service: CSP.IChainStateService) {
-    services[currency] = service;
+  registerService(chain: string, network: string, service: IChainStateService) {
+    services[chain] = services[chain] || {}
+    services[chain][network] = service;
   }
 
   async getCoinsForTx(params: { chain: string; network: string; txid: string }) {

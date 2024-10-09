@@ -1,4 +1,4 @@
-export type IBlock = {
+export interface IBlock {
   chain: string;
   confirmations?: number;
   network: string;
@@ -8,8 +8,9 @@ export type IBlock = {
   timeNormalized: Date;
   previousBlockHash: string;
   nextBlockHash: string;
+  transactions?: string[];
   transactionCount: number;
   size: number;
   reward: number;
   processed: boolean;
-};
+}

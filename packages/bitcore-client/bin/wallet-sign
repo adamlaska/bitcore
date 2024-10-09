@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 
-const program = require('../ts_build/program');
-const { Wallet } = require('../ts_build/wallet');
+const program = require('commander');
+const { Wallet } = require('../ts_build/src/wallet');
 const promptly = require('promptly');
 const fs = require('fs');
-const { StreamUtil } = require('../ts_build/stream-util');
-const { Encryption } = require('../ts_build/encryption');
+const { StreamUtil } = require('../ts_build/src/stream-util');
 
 /**
  * USAGE -
@@ -16,22 +15,24 @@ const { Encryption } = require('../ts_build/encryption');
  */
 program
   .version(require('../package.json').version)
-  .option('--name <name>', 'REQUIRED - Bitcore Wallet Name')
-  .option('--path [path]', 'optional - Custom wallet storage path')
-  .option('--tx [tx]', 'The raw transaction to sign')
-  .option('--txfile [txfile]', 'path to a jsonl file with rawTransaction and utxos')
-  .option('--utxos', 'Pass in utxos to use to sign transaction')
-  .option('--keys [keys]', 'jsonl file of {privKey, pubKey, address} pairs')
+  .requiredOption('--name <name>', 'REQUIRED - Bitcore Wallet Name')
+  .option('--tx <tx>', 'The raw transaction to sign')
+  .option('--txfile <txfile>', 'Path to a jsonl file with rawTransaction and utxos')
+  .option('--utxos <utxos>', 'Array of utxos to use to sign transaction')
+  .option('--keys <keys>', 'jsonl file of {privKey, pubKey, address} pairs')
+  .option('--storageType <storageType>', 'optional - Name of the database (default - level)')
+  .option('--path <path>', 'optional - Custom wallet storage path')
   .parse(process.argv);
 
+let wallet;
+
 const main = async () => {
-  const { name, path, tx, txfile, keys, utxos } = program;
-  let wallet;
+  const { name, path, tx, txfile, keys, utxos, storageType } = program.opts();
   let encryptedKeys;
   let bitcoinCorePassword;
   try {
     const password = await promptly.password('Wallet Password:');
-    wallet = await Wallet.loadWallet({ name, path });
+    wallet = await Wallet.loadWallet({ name, path, storageType });
     wallet = await wallet.unlock(password);
     if (keys) {
       let contents = fs.readFileSync(keys).toString();
@@ -48,14 +49,16 @@ const main = async () => {
     if (txfile) {
       const readStream = fs.createReadStream(txfile, {flags: 'r', encoding: 'utf8'});
       readStream
-        .pipe(StreamUtil.jsonlBufferToObjectMode()).on("error", console.error)
-        .pipe(StreamUtil.signTxStream(wallet, encryptedKeys, utxos, bitcoinCorePassword)).on("error", console.error)
-        .pipe(StreamUtil.objectModeToJsonlBuffer()).on("error", console.error)
-        .pipe(process.stdout).on("error", console.error);
+        .pipe(StreamUtil.jsonlBufferToObjectMode()).on('error', console.error)
+        .pipe(StreamUtil.signTxStream(wallet, encryptedKeys, utxos, bitcoinCorePassword)).on('error', console.error)
+        .pipe(StreamUtil.objectModeToJsonlBuffer()).on('error', console.error)
+        .pipe(process.stdout).on('error', console.error);
     }
   } catch (e) {
     console.error(e);
   }
 };
 
-main();
+main()
+  .catch(console.error)
+  .finally(() => wallet?.storage?.close());

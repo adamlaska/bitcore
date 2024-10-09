@@ -17,8 +17,8 @@ var invalidbase58 = require('./data/bitcoind/base58_keys_invalid.json');
 
 describe('Address', function() {
 
-  var pubkeyhash = new Buffer('3c3fa3d4adcaf8f52d5b1843975e122548269937', 'hex');
-  var buf = Buffer.concat([new Buffer([0]), pubkeyhash]);
+  var pubkeyhash = Buffer.from('3c3fa3d4adcaf8f52d5b1843975e122548269937', 'hex');
+  var buf = Buffer.concat([Buffer.from([0]), pubkeyhash]);
   var str = '16VZnHwRhwrExfeHFHGjwrgEMq8VcYPs9r';
 
   it('can\'t build without data', function() {
@@ -36,7 +36,7 @@ describe('Address', function() {
   it('should throw an error because of bad type param', function() {
     (function() {
       return new Address(PKHLivenet[0], 'livenet', 'pubkey');
-    }).should.throw('Third argument must be "pubkeyhash", "scripthash", "witnesspubkeyhash", or "witnessscripthash".');
+    }).should.throw('Third argument must be "pubkeyhash", "scripthash", "witnesspubkeyhash", "witnessscripthash", or "taproot".');
   });
 
   describe('bitcoind compliance', function() {
@@ -289,25 +289,25 @@ describe('Address', function() {
 
     it('should error because of incorrect length buffer for transform buffer', function() {
       (function() {
-        return Address._transformBuffer(new Buffer(20));
+        return Address._transformBuffer(Buffer.alloc(20));
       }).should.throw('Address buffer is incorrect length.');
     });
 
     it('should error because of incorrect type for pubkey transform', function() {
       (function() {
-        return Address._transformPublicKey(new Buffer(20));
+        return Address._transformPublicKey(Buffer.alloc(20));
       }).should.throw('Address must be an instance of PublicKey.');
     });
 
     it('should error because of incorrect type for script transform', function() {
       (function() {
-        return Address._transformScript(new Buffer(20));
+        return Address._transformScript(Buffer.alloc(20));
       }).should.throw('Invalid Argument: script must be a Script instance');
     });
 
     it('should error because of incorrect type for string transform', function() {
       (function() {
-        return Address._transformString(new Buffer(20));
+        return Address._transformString(Buffer.alloc(20));
       }).should.throw('data parameter supplied is not a string.');
     });
 

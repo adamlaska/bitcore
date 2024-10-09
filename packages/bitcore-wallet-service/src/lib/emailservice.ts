@@ -5,7 +5,12 @@ import 'source-map-support/register';
 // This has been changed in favor of @sendgrid.  To use nodemail, change the
 // sending function from `.send` to `.sendMail`.
 // import * as nodemailer from nodemailer';
+import { Constants as ConstantsCWC } from 'crypto-wallet-core';
+import request from 'request';
+import config from '../config';
+import { Common } from './common';
 import { Lock } from './lock';
+import logger from './logger';
 import { MessageBroker } from './messagebroker';
 import { Email } from './model';
 import { Storage } from './storage';
@@ -20,11 +25,10 @@ export interface Recipient {
 const Mustache = require('mustache');
 const fs = require('fs');
 const path = require('path');
-const Utils = require('./common/utils');
-const Defaults = require('./common/defaults');
-
-let log = require('npmlog');
-log.debug = log.verbose;
+const Utils = Common.Utils;
+const Defaults = Common.Defaults;
+const Constants = Common.Constants;
+const defaultRequest = require('request');
 
 const EMAIL_TYPES = {
   NewCopayer: {
@@ -76,10 +80,12 @@ export class EmailService {
   messageBroker: MessageBroker;
   lock: Lock;
   mailer: any;
+  request: request.RequestAPI<any, any, any>;
   //  mailer: nodemailer.Transporter;
 
   start(opts, cb) {
     opts = opts || {};
+    this.request = opts.request || defaultRequest;
 
     const _readDirectories = (basePath, cb) => {
       fs.readdir(basePath, (err, files) => {
@@ -91,7 +97,7 @@ export class EmailService {
               return next(!err && stats.isDirectory());
             });
           },
-          (dirs) => {
+          dirs => {
             return cb(null, dirs);
           }
         );
@@ -102,10 +108,8 @@ export class EmailService {
 
     this.defaultLanguage = opts.emailOpts.defaultLanguage || 'en';
     this.defaultUnit = opts.emailOpts.defaultUnit || 'btc';
-    log.info('Email templates at:' +
-      (opts.emailOpts.templatePath || __dirname + '/../../templates') + '/');
-    this.templatePath = path.normalize(
-      (opts.emailOpts.templatePath || __dirname + '/../../templates') + '/');
+    logger.info('Email templates at:' + (opts.emailOpts.templatePath || __dirname + '/../../templates') + '/');
+    this.templatePath = path.normalize((opts.emailOpts.templatePath || __dirname + '/../../templates') + '/');
 
     this.publicTxUrlTemplate = opts.emailOpts.publicTxUrlTemplate || {};
     this.subjectPrefix = opts.emailOpts.subjectPrefix || '[Wallet service]';
@@ -113,43 +117,38 @@ export class EmailService {
 
     async.parallel(
       [
-        (done) => {
+        done => {
           _readDirectories(this.templatePath, (err, res) => {
             this.availableLanguages = res;
             done(err);
           });
         },
-        (done) => {
+        done => {
           if (opts.storage) {
             this.storage = opts.storage;
             done();
           } else {
             this.storage = new Storage();
-            this.storage.connect(
-              opts.storageOpts,
-              done
-            );
+            this.storage.connect(opts.storageOpts, done);
           }
         },
-        (done) => {
-          this.messageBroker =
-            opts.messageBroker || new MessageBroker(opts.messageBrokerOpts);
+        done => {
+          this.messageBroker = opts.messageBroker || new MessageBroker(opts.messageBrokerOpts);
           this.messageBroker.onMessage(_.bind(this.sendEmail, this));
           done();
         },
-        (done) => {
-          this.lock = opts.lock || new Lock(this.storage, opts.lockOpts);
+        done => {
+          this.lock = opts.lock || new Lock(this.storage);
           done();
         },
-        (done) => {
-          this.mailer =
-            opts.mailer; // || nodemailer.createTransport(opts.emailOpts);
+        done => {
+          this.mailer = opts.mailer; // || nodemailer.createTransport(opts.emailOpts);
           done();
         }
       ],
-      (err) => {
+      err => {
         if (err) {
-          log.error(err);
+          logger.error('%o', err);
         }
         return cb(err);
       }
@@ -171,9 +170,7 @@ export class EmailService {
     const fullFilename = path.join(this.templatePath, language, filename);
     fs.readFile(fullFilename, 'utf8', (err, template) => {
       if (err) {
-        return cb(
-          new Error('Could not read template file ' + fullFilename + err)
-        );
+        return cb(new Error('Could not read template file ' + fullFilename + err));
       }
       return cb(null, template);
     });
@@ -181,25 +178,21 @@ export class EmailService {
 
   // TODO: cache for X minutes
   _loadTemplate(emailType, recipient, extension, cb) {
-    this._readTemplateFile(
-      recipient.language,
-      emailType.filename + extension,
-      (err, template) => {
-        if (err) return cb(err);
-        return cb(null, this._compileTemplate(template, extension));
-      }
-    );
+    this._readTemplateFile(recipient.language, emailType.filename + extension, (err, template) => {
+      if (err) return cb(err);
+      return cb(null, this._compileTemplate(template, extension));
+    });
   }
 
   _applyTemplate(template, data, cb) {
     if (!data) return cb(new Error('Could not apply template to empty data'));
 
     let error;
-    const result = _.mapValues(template, (t) => {
+    const result = _.mapValues(template, t => {
       try {
         return Mustache.render(t, data);
       } catch (e) {
-        log.error('Could not apply data to template', e);
+        logger.error('Could not apply data to template: %o', e);
         error = e;
       }
     });
@@ -211,38 +204,34 @@ export class EmailService {
     this.storage.fetchWallet(notification.walletId, (err, wallet) => {
       if (err) return cb(err);
 
-      this.storage.fetchPreferences(notification.walletId, null, (
-        err,
-        preferences
-      ) => {
+      this.storage.fetchPreferences(notification.walletId, null, (err, preferences) => {
         if (err) return cb(err);
         if (_.isEmpty(preferences)) return cb(null, []);
 
         const usedEmails = {};
         const recipients = _.compact(
-          _.map(preferences, (p) => {
+          _.map(preferences, p => {
             if (!p.email || usedEmails[p.email]) return;
 
             usedEmails[p.email] = true;
-            if (notification.creatorId == p.copayerId && !emailType.notifyDoer)
-              return;
-            if (
-              notification.creatorId != p.copayerId &&
-              !emailType.notifyOthers
-            )
-              return;
+            if (notification.creatorId == p.copayerId && !emailType.notifyDoer) return;
+            if (notification.creatorId != p.copayerId && !emailType.notifyOthers) return;
             if (!_.includes(this.availableLanguages, p.language)) {
               if (p.language) {
-                log.warn(
-                  'Language for email "' + p.language + '" not available.'
-                );
+                logger.warn('Language for email "' + p.language + '" not available.');
               }
               p.language = this.defaultLanguage;
             }
 
             let unit;
             if (wallet.coin != Defaults.COIN) {
-              unit = wallet.coin;
+              switch (wallet.coin) {
+                case 'pax':
+                  unit = 'usdp'; // backwards compatibility
+                  break;
+                default:
+                  unit = wallet.coin;
+              }
             } else {
               unit = p.unit || this.defaultUnit;
             }
@@ -261,22 +250,75 @@ export class EmailService {
     });
   }
 
-  _getDataForTemplate(notification, recipient, cb) {
-    // TODO: Declare these in BWU
+  async _getDataForTemplate(notification, recipient, cb) {
     const UNIT_LABELS = {
       btc: 'BTC',
       bit: 'bits',
       bch: 'BCH',
-      eth: 'ETH'
+      eth: 'ETH',
+      matic: 'MATIC',
+      xrp: 'XRP',
+      doge: 'DOGE',
+      ltc: 'LTC',
+      usdc: 'USDC',
+      pyusd: 'PYUSD',
+      usdp: 'USDP',
+      gusd: 'GUSD',
+      busd: 'BUSD',
+      wbtc: 'WBTC',
+      dai: 'DAI',
+      shib: 'SHIB',
+      ape: 'APE',
+      euroc: 'EUROC',
+      usdt: 'USDT',
+      weth: 'WETH'
     };
 
     const data = _.cloneDeep(notification.data);
     data.subjectPrefix = _.trim(this.subjectPrefix) + ' ';
     if (data.amount) {
       try {
-        const unit = recipient.unit.toLowerCase();
-        data.amount =
-          Utils.formatAmount(+data.amount, unit) + ' ' + UNIT_LABELS[unit];
+        let unit = recipient.unit.toLowerCase();
+        let label = UNIT_LABELS[unit];
+        let opts = {} as any;
+        if (data.tokenAddress) {
+          const tokenAddress = data.tokenAddress.toLowerCase();
+          if (Constants.ETH_TOKEN_OPTS[tokenAddress]) {
+            unit = Constants.ETH_TOKEN_OPTS[tokenAddress].symbol.toLowerCase();
+            label = UNIT_LABELS[unit];
+          } else if (Constants.MATIC_TOKEN_OPTS[tokenAddress]) {
+            unit = Constants.MATIC_TOKEN_OPTS[tokenAddress].symbol.toLowerCase();
+            label = UNIT_LABELS[unit];
+          } else if (Constants.ARB_TOKEN_OPTS[tokenAddress]) {
+            unit = Constants.ARB_TOKEN_OPTS[tokenAddress].symbol.toLowerCase();
+            label = UNIT_LABELS[unit];
+          } else if (Constants.OP_TOKEN_OPTS[tokenAddress]) {
+            unit = Constants.OP_TOKEN_OPTS[tokenAddress].symbol.toLowerCase();
+            label = UNIT_LABELS[unit];
+          } else if (Constants.BASE_TOKEN_OPTS[tokenAddress]) {
+            unit = Constants.BASE_TOKEN_OPTS[tokenAddress].symbol.toLowerCase();
+            label = UNIT_LABELS[unit];
+          } else {
+            let customTokensData;
+            try {
+              customTokensData = await this.getTokenData(data.address.coin);
+            } catch (error) {
+              return cb(new Error('Could not get custom tokens data'));
+            }
+            if (customTokensData && customTokensData[tokenAddress]) {
+              unit = customTokensData[tokenAddress].symbol.toLowerCase();
+              label = unit.toUpperCase();
+              opts.toSatoshis = 10 ** customTokensData[tokenAddress].decimals;
+              opts.decimals = {
+                maxDecimals: 6,
+                minDecimals: 2
+              };
+            } else {
+              return cb(new Error(`Email Notifications for unsupported tokens are not allowed: ${tokenAddress}`));
+            }
+          }
+        }
+        data.amount = Utils.formatAmount(+data.amount, unit, opts) + ' ' + label;
       } catch (ex) {
         return cb(new Error('Could not format amount' + ex));
       }
@@ -289,31 +331,30 @@ export class EmailService {
       data.walletName = wallet.name;
       data.walletM = wallet.m;
       data.walletN = wallet.n;
-      const copayer = wallet.copayers.find((c) => c.id == notification.creatorId);
+      const copayer = wallet.copayers.find(c => c.id == notification.creatorId);
       if (copayer) {
         data.copayerId = copayer.id;
         data.copayerName = copayer.name;
       }
 
       if (notification.type == 'TxProposalFinallyRejected' && data.rejectedBy) {
-        const rejectors = _.map(data.rejectedBy, (copayerId) => {
-          const copayer = wallet.copayers.find((c) => c.id == copayerId);
+        const rejectors = _.map(data.rejectedBy, copayerId => {
+          const copayer = wallet.copayers.find(c => c.id == copayerId);
           return copayer.name;
         });
         data.rejectorsNames = rejectors.join(', ');
       }
 
-      if (
-        _.includes(['NewIncomingTx', 'NewOutgoingTx'], notification.type) &&
-        data.txid
-      ) {
-        const urlTemplate = this.publicTxUrlTemplate[wallet.coin][wallet.network];
+      if (_.includes(['NewIncomingTx', 'NewOutgoingTx'], notification.type) && data.txid) {
+        const urlTemplate = this.publicTxUrlTemplate[wallet.chain]?.[wallet.network];
         if (urlTemplate) {
           try {
             data.urlForTx = Mustache.render(urlTemplate, data);
           } catch (ex) {
-            log.warn('Could not render public url for tx', ex);
+            logger.warn('Could not render public url for tx: %o', ex);
           }
+        } else {
+          logger.warn(`Could not find template for chain "${wallet.chain}" on network "${wallet.network}"`);
         }
       }
 
@@ -335,17 +376,16 @@ export class EmailService {
     this.mailer
       .send(mailOptions)
       .then(result => {
-        log.debug('Message sent: ', result || '');
+        logger.debug('Message sent: %o', result || '');
         return cb(null, result);
       })
       .catch(err => {
         let errStr;
-        try { errStr = err.toString().substr(0, 100); } catch (e) { }
+        try {
+          errStr = err.toString().substr(0, 100);
+        } catch (e) { }
 
-        log.warn(
-          'An error occurred when trying to send email to ' + email.to,
-          errStr || err
-        );
+        logger.warn('An error occurred when trying to send email to %o %o', email.to, (errStr || err));
         return cb(err);
       });
   }
@@ -356,17 +396,14 @@ export class EmailService {
       (recipient, next) => {
         async.waterfall(
           [
-            (next) => {
+            next => {
               this._getDataForTemplate(notification, recipient, next);
             },
             (data, next) => {
               async.map(
                 ['plain', 'html'],
                 (type, next) => {
-                  this._loadTemplate(emailType, recipient, '.' + type, (
-                    err,
-                    template
-                  ) => {
+                  this._loadTemplate(emailType, recipient, '.' + type, (err, template) => {
                     if (err && type == 'html') return next();
                     if (err) return next(err);
                     this._applyTemplate(template, data, (err, res) => {
@@ -411,32 +448,21 @@ export class EmailService {
       if (err) return cb(err);
       if (!should) return cb();
 
-      this._getRecipientsList(notification, emailType, (
-        err,
-        recipientsList: Recipient[]
-      ) => {
+      this._getRecipientsList(notification, emailType, (err, recipientsList: Recipient[]) => {
         if (_.isEmpty(recipientsList)) return cb();
 
         // TODO: Optimize so one process does not have to wait until all others are done
         // Instead set a flag somewhere in the db to indicate that this process is free
         // to serve another request.
-        this.lock.runLocked('email-' + notification.id, {}, cb, (cb) => {
-          this.storage.fetchEmailByNotification(notification.id, (
-            err,
-            email
-          ) => {
+        this.lock.runLocked('email-' + notification.id, {}, cb, cb => {
+          this.storage.fetchEmailByNotification(notification.id, (err, email) => {
             if (err) return cb(err);
             if (email) return cb();
 
             async.waterfall(
               [
-                (next) => {
-                  this._readAndApplyTemplates(
-                    notification,
-                    emailType,
-                    recipientsList,
-                    next
-                  );
+                next => {
+                  this._readAndApplyTemplates(notification, emailType, recipientsList, next);
                 },
                 (contents, next) => {
                   async.map(
@@ -453,7 +479,7 @@ export class EmailService {
                         bodyHtml: content.html ? content.html.body : null,
                         notificationId: notification.id
                       });
-                      this.storage.storeEmail(email, (err) => {
+                      this.storage.storeEmail(email, err => {
                         return next(err, email);
                       });
                     },
@@ -464,7 +490,7 @@ export class EmailService {
                   async.each(
                     emails,
                     (email: any, next) => {
-                      this._send(email, (err) => {
+                      this._send(email, err => {
                         if (err) {
                           email.setFail();
                         } else {
@@ -473,21 +499,20 @@ export class EmailService {
                         this.storage.storeEmail(email, next);
                       });
                     },
-                    (err) => {
+                    err => {
                       return next();
                     }
                   );
                 }
               ],
-              (err) => {
+              err => {
                 if (err) {
                   let errStr;
-                  try { errStr = err.toString().substr(0, 100); } catch (e) { }
+                  try {
+                    errStr = err.toString().substr(0, 100);
+                  } catch (e) { }
 
-                  log.warn(
-                    'An error ocurred generating email notification',
-                    errStr || err
-                  );
+                  logger.warn('An error ocurred generating email notification: %o', errStr || err);
                 }
                 return cb(err);
               }
@@ -497,6 +522,49 @@ export class EmailService {
       });
     });
   }
-}
 
-module.exports = EmailService;
+  private oneInchGetCredentials() {
+    if (!config.oneInch) throw new Error('1Inch missing credentials');
+
+    const credentials = {
+      API: config.oneInch.api,
+      API_KEY: config.oneInch.apiKey,
+      referrerAddress: config.oneInch.referrerAddress,
+      referrerFee: config.oneInch.referrerFee
+    };
+
+    return credentials;
+  }
+
+  public getTokenData(chain: string) {
+    return new Promise((resolve, reject) => {
+      try {
+        const credentials = this.oneInchGetCredentials();
+        // Get mainnet chainId
+        const chainId = ConstantsCWC.EVM_CHAIN_NETWORK_TO_CHAIN_ID[`${chain.toUpperCase()}_mainnet`]
+        this.request(
+          {
+            url: `${credentials.API}/v5.2/${chainId}/tokens`,
+            method: 'GET',
+            json: true,
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              Authorization: 'Bearer ' + credentials.API_KEY,
+            }
+          },
+          (err, data) => {
+            if (err) return reject(err);
+            if (data?.statusCode === 429) {
+              // oneinch rate limit
+              return reject();
+            }
+            return resolve(data?.body?.tokens);
+          }
+        );
+      } catch (err) {
+        return reject(err);
+      }
+    });
+  }
+}

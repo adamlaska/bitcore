@@ -1,11 +1,10 @@
-
 import { BitcoreLib, BitcoreLibCash } from 'crypto-wallet-core';
 
 var $ = require('preconditions').singleton();
 const URL = require('url');
 const _ = require('lodash');
 const superagent = require('superagent');
-var Bitcore = BitcoreLib;
+const Bitcore = BitcoreLib;
 const Errors = require('./errors');
 var Bitcore_ = {
   btc: Bitcore,
@@ -101,44 +100,49 @@ export class PayPro {
       );
     }
 
-    var hashbuf = Buffer.from(hash, 'hex');
-    let sigbuf = Buffer.from(signature, 'hex');
+    try {
+      const hashbuf = Buffer.from(hash, 'hex');
+      const sigbuf = Buffer.from(signature, 'hex');
 
-    let s_r = Buffer.alloc(32);
-    let s_s = Buffer.alloc(32);
+      const s_r = Buffer.alloc(32);
+      const s_s = Buffer.alloc(32);
 
-    sigbuf.copy(s_r, 0, 0);
-    sigbuf.copy(s_s, 0, 32);
+      sigbuf.copy(s_r, 0, 0);
+      sigbuf.copy(s_s, 0, 32);
 
-    let s_rBN = Bitcore.crypto.BN.fromBuffer(s_r);
-    let s_sBN = Bitcore.crypto.BN.fromBuffer(s_s);
+      const s_rBN = Bitcore.crypto.BN.fromBuffer(s_r);
+      const s_sBN = Bitcore.crypto.BN.fromBuffer(s_s);
 
-    let pub = Bitcore.PublicKey.fromString(keyData.publicKey);
+      const pub = Bitcore.PublicKey.fromString(keyData.publicKey);
 
-    let sig = new Bitcore.crypto.Signature();
-    sig.set({ r: s_rBN, s: s_sBN });
+      const sig = new Bitcore.crypto.Signature();
+      sig.set({ r: s_rBN, s: s_sBN });
 
-    let valid = Bitcore.crypto.ECDSA.verify(hashbuf, sig, pub);
+      const valid = Bitcore.crypto.ECDSA.verify(hashbuf, sig, pub);
+      if (!valid) {
+        throw new Error('Invalid signature');
+      }
 
-    if (!valid) {
+      return callback(null, keyData.owner);
+    } catch (err) {
       return callback(new Error('Response signature invalid'));
     }
-
-    return callback(null, keyData.owner);
   }
 
   static runRequest(opts, cb) {
     $.checkArgument(opts.network, 'should pass network');
     var r = this.r[opts.method.toLowerCase()](opts.url);
     _.each(opts.headers, function (v, k) {
-      if (v)
-        r.set(k, v);
+      if (v) r.set(k, v);
     });
     if (opts.args) {
-      if (opts.method.toLowerCase() == 'post' || opts.method.toLowerCase() == 'put') {
-          r.send(opts.args);
+      if (
+        opts.method.toLowerCase() == 'post' ||
+        opts.method.toLowerCase() == 'put'
+      ) {
+        r.send(opts.args);
       } else {
-          r.query(opts.args);
+        r.query(opts.args);
       }
     }
     r.end((err, res) => {
@@ -147,11 +151,11 @@ export class PayPro {
       if (!res || res.statusCode != 200) {
         // some know codes
         if (res.statusCode == 400) {
-          return cb(new Errors.INVOICE_EXPIRED);
+          return cb(new Errors.INVOICE_EXPIRED());
         } else if (res.statusCode == 404) {
-          return cb(new Errors.INVOICE_NOT_AVAILABLE);
+          return cb(new Errors.INVOICE_NOT_AVAILABLE());
         } else if (res.statusCode == 422) {
-          return cb(new Errors.UNCONFIRMED_INPUTS_NOT_ACCEPTED);
+          return cb(new Errors.UNCONFIRMED_INPUTS_NOT_ACCEPTED());
         }
 
         let m = res ? res.statusMessage || res.statusCode : '';
@@ -216,13 +220,13 @@ export class PayPro {
 
     var COIN = coin.toUpperCase();
     opts.headers = opts.headers || {
-      'Accept': JSON_PAYMENT_REQUEST_CONTENT_TYPE,
+      Accept: JSON_PAYMENT_REQUEST_CONTENT_TYPE,
       'Content-Type': 'application/octet-stream'
     };
     opts.method = 'GET';
     opts.network = opts.network || 'livenet';
 
-    PayPro.runRequest(opts, function(err, data) {
+    PayPro.runRequest(opts, function (err, data) {
       if (err) return cb(err);
 
       var ret: any = {};
@@ -302,7 +306,7 @@ export class PayPro {
     opts.noVerify = true;
 
     // verify request
-    PayPro.runRequest(opts, function(err, rawData) {
+    PayPro.runRequest(opts, function (err, rawData) {
       if (err) {
         console.log(
           'Error at verify-payment:',
@@ -314,7 +318,7 @@ export class PayPro {
 
       opts.headers = {
         'Content-Type': JSON_PAYMENT_CONTENT_TYPE,
-        'Accept': JSON_PAYMENT_ACK_CONTENT_TYPE
+        Accept: JSON_PAYMENT_ACK_CONTENT_TYPE
       };
 
       if (opts.bp_partner) {
@@ -332,7 +336,7 @@ export class PayPro {
       // Do not verify payment message's response
       opts.noVerify = true;
 
-      PayPro.runRequest(opts, function(err, rawData) {
+      PayPro.runRequest(opts, function (err, rawData) {
         if (err) {
           console.log(
             'Error at payment:',

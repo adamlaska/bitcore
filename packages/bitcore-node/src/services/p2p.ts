@@ -1,35 +1,37 @@
 import * as os from 'os';
 import logger from '../logger';
-import { Config, ConfigService } from './config';
-import { BaseBlock, IBlock } from '../models/baseBlock';
-import { wait } from '../utils/wait';
+import { BaseBlock } from '../models/baseBlock';
 import { StateStorage } from '../models/state';
+import { IBlock } from '../types/Block';
+import { wait } from '../utils';
+import { Config, ConfigService } from './config';
 
 export class P2pManager {
-  workers = new Array<BaseP2PWorker>();
   workerClasses: { [chain: string]: Class<BaseP2PWorker> } = {};
 
   private configService: ConfigService;
-  private p2pWorkers: Array<BaseP2PWorker>;
+  public workers: Array<BaseP2PWorker>;
 
   constructor({ configService = Config } = {}) {
     this.configService = configService;
-    this.p2pWorkers = new Array<BaseP2PWorker>();
+    this.workers = new Array<BaseP2PWorker>();
   }
 
-  register(chain: string, worker: Class<BaseP2PWorker<any>>) {
-    this.workerClasses[chain] = worker;
+  register(chain: string, network: string, worker: Class<BaseP2PWorker<any>>) {
+    this.workerClasses[chain] = this.workerClasses[chain] || {};
+    this.workerClasses[chain][network] = worker;
   }
 
-  get(chain: string) {
-    return this.workerClasses[chain];
+  get(chain: string, network: string) {
+    return this.workerClasses[chain][network];
   }
 
   async stop() {
     logger.info('Stopping P2P Manager');
-    for (const worker of this.p2pWorkers) {
+    for (const worker of this.workers) {
       await worker.stop();
     }
+    this.workers = [];
   }
 
   async start() {
@@ -45,17 +47,17 @@ export class P2pManager {
       if ((chainConfig.chainSource && chainConfig.chainSource !== 'p2p') || chainConfig.disabled) {
         continue;
       }
-      logger.info(`Starting ${chain} p2p worker`);
-      const p2pWorker = new this.workerClasses[chain]({
+      logger.info(`Starting P2P worker ${chain}:${network}`);
+      const p2pWorker = new this.workerClasses[chain][network]({
         chain,
         network,
         chainConfig
       });
-      this.p2pWorkers.push(p2pWorker);
+      this.workers.push(p2pWorker);
       try {
         p2pWorker.start();
-      } catch (e) {
-        logger.error('P2P Worker died with', e);
+      } catch (e: any) {
+        logger.error('P2P Worker %o:%o died: %o', chain, network, e.stack || e.message || e);
       }
     }
   }
@@ -69,10 +71,10 @@ export class BaseP2PWorker<T extends IBlock = IBlock> {
   protected network = '';
   public isSyncingNode = false;
 
-  constructor(protected params: { chain; network; chainConfig; blockModel: BaseBlock<T> }) {}
-  async start() {}
-  async stop() {}
-  async sync() {}
+  constructor(protected params: { chain; network; chainConfig; blockModel?: BaseBlock<T> }) {}
+  async start(): Promise<any> {}
+  async stop(): Promise<any> {}
+  async sync(): Promise<any> {}
 
   getIsSyncingNode(): boolean {
     if (!this.lastHeartBeat) {
@@ -87,8 +89,8 @@ export class BaseP2PWorker<T extends IBlock = IBlock> {
   }
 
   async waitTilSync() {
-    while(true) {
-      if(this.isSyncingNode) {
+    while (true) {
+      if (this.isSyncingNode) {
         return;
       }
       await wait(500);
@@ -111,6 +113,7 @@ export class BaseP2PWorker<T extends IBlock = IBlock> {
       if (!this.lastHeartBeat || this.getIsSyncingNode()) {
         this.registerSyncingNode({ primary: true });
       } else {
+        logger.info('Another node is the primary syncing node');
         this.registerSyncingNode({ primary: false });
       }
       await wait(500);
@@ -134,13 +137,18 @@ export class BaseP2PWorker<T extends IBlock = IBlock> {
 
   async unregisterSyncingNode() {
     await wait(1000);
-    this.lastHeartBeat = await StateStorage.getSyncingNode({ chain: this.chain, network: this.network });
-    if (this.getIsSyncingNode()) {
-      await StateStorage.selfResignSyncingNode({
-        chain: this.chain,
-        network: this.network,
-        lastHeartBeat: this.lastHeartBeat
-      });
+    try {
+      this.lastHeartBeat = await StateStorage.getSyncingNode({ chain: this.chain, network: this.network });
+      if (this.getIsSyncingNode()) {
+        await StateStorage.selfResignSyncingNode({
+          chain: this.chain,
+          network: this.network,
+          lastHeartBeat: this.lastHeartBeat
+        });
+      }
+    } catch (e: any) {
+      logger.warn('Issue unregistering');
+      logger.error('%o', e);
     }
   }
 }

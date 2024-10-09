@@ -3,16 +3,20 @@ export interface IPushNotificationSub {
   createdOn: number;
   copayerId: string;
   token: string;
+  externalUserId: string;
   packageName: string;
   platform: string;
+  walletId: string;
 }
 export class PushNotificationSub {
   version: string;
   createdOn: number;
   copayerId: string;
   token: string;
+  externalUserId: string;
   packageName: string;
   platform: string;
+  walletId: string;
 
   static create(opts) {
     opts = opts || {};
@@ -23,8 +27,10 @@ export class PushNotificationSub {
     x.createdOn = Math.floor(Date.now() / 1000);
     x.copayerId = opts.copayerId;
     x.token = opts.token;
+    x.externalUserId = opts.externalUserId;
     x.packageName = opts.packageName;
     x.platform = opts.platform;
+    x.walletId = opts.walletId;
     return x;
   }
 
@@ -35,8 +41,10 @@ export class PushNotificationSub {
     x.createdOn = obj.createdOn;
     x.copayerId = obj.copayerId;
     x.token = obj.token;
+    x.externalUserId = obj.externalUserId;
     x.packageName = obj.packageName;
     x.platform = obj.platform;
+    x.walletId = obj.walletId;
     return x;
   }
 }

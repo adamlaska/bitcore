@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
-var config = require('../config');
-
+import config from '../config';
 import { FiatRateService } from '../lib/fiatrateservice';
+import logger from '../lib/logger';
 
 const service = new FiatRateService();
-service.init(config, (err) => {
+service.init(config, err => {
   if (err) throw err;
-  service.startCron(config, (err) => {
+  service.startCron(config, err => {
     if (err) throw err;
 
-    console.log('Fiat rate service started');
+    logger.info('Fiat rate service started');
   });
 });

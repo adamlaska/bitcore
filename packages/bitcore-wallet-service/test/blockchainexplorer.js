@@ -10,7 +10,8 @@ describe('BlockChain explorer', function() {
   describe('#constructor', function() {
     it('should return a blockchain explorer with basic methods', function() {
       var exp = new BlockChainExplorer({
-        network: 'testnet',
+        coin: 'btc',
+        network: 'testnet3',
       });
       should.exist(exp);
       exp.should.respondTo('broadcast');
@@ -26,6 +27,7 @@ describe('BlockChain explorer', function() {
 
       var exp2 = new BlockChainExplorer({
         provider: 'v8',
+        coin: 'btc',
         network: 'livenet',
       });
       should.exist(exp2);
@@ -40,17 +42,22 @@ describe('BlockChain explorer', function() {
 
     });
     it('should fail on unsupported provider', function() {
-      (function() {
+      try {
         var exp = new BlockChainExplorer({
           provider: 'dummy',
+          coin: 'btc',
         });
-      }).should.throw('not supported');
+        throw new Error('Should have thrown');
+      } catch (err) {
+        err.message.should.equal('No url found for provider: dummy:btc:livenet');
+      }
     });
   });
   describe('#v8', function() {
     it.skip('should sign registration', function() {
       var exp = new BlockChainExplorer({
         provider: 'v8',
+        coin: 'btc',
         network: 'livenet',
       });
       should.exist(exp);

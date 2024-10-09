@@ -1,6 +1,5 @@
+import baseX from 'base-x';
 import Bitcore from 'bitcore-lib';
-// tslint:disable-next-line:no-submodule-imports
-import baseX from 'bitcore-lib/node_modules/base-x';
 import { IValidation } from '..';
 
 const RIPPLE_ALPHABET = 'rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz';
@@ -35,9 +34,17 @@ export class XrpValidation implements IValidation {
   }
 
   validateUri(addressUri: string): boolean {
-    // Check if the input is a valid uri or address
-    const URI = Bitcore.URI;
-    // Bip21 uri
-    return URI.isValid(addressUri);
+    if (!addressUri) {
+      return false;
+    }
+    const address = this.extractAddress(addressUri);
+    const ripplePrefix = /ripple/i.exec(addressUri);
+    return !!ripplePrefix && this.validateAddress('livenet', address);
+  }
+
+  private extractAddress(data) {
+    const prefix = /^[a-z]+:/i;
+    const params = /([\?\&](amount|dt)=(\d+([\,\.]\d+)?))+/i;
+    return data.replace(prefix, '').replace(params, '');
   }
 }

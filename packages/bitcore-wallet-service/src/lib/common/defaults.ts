@@ -1,34 +1,7 @@
 'use strict';
 
-module.exports = {
+export const Defaults = {
   MIN_FEE_PER_KB: 0,
-
-  MAX_FEE_PER_KB: {
-    btc: 10000 * 1000, // 10k sat/b
-    bch: 10000 * 1000, // 10k sat/b
-    eth: 50000000000, // 50 Gwei
-  },
-
-  MIN_TX_FEE: {
-    btc: 0,
-    bch: 0,
-    eth: 0,
-  },
-
-  MAX_TX_FEE: {
-    btc: 0.05 * 1e8,
-    bch: 0.05 * 1e8,
-    eth: 1 * 1e18,  // 1 eth
-  },
-
-  MAX_TX_SIZE_IN_KB: {
-    btc: 100,
-    bch: 100,
-    eth: 500,
-  },
-
-  // ETH
-  DEFAULT_GAS_LIMIT: 21000,
 
   MAX_KEYS: 100,
 
@@ -79,37 +52,184 @@ module.exports = {
       {
         name: 'normal',
         nbBlocks: 2,
+        multiplier: 1.05, // To fix fees < 1sat/byte
         defaultValue: 2000
       }
     ],
     eth: [
       {
         name: 'urgent',
-        nbBlocks: 10, // < 2 min
-        multiplier: 1.1,
-        defaultValue: 30000000000
+        nbBlocks: 1,
+        defaultValue: 10000000000
       },
       {
         name: 'priority',
-        nbBlocks: 15, // 3 min
-        defaultValue: 25000000000
+        nbBlocks: 2,
+        defaultValue: 5000000000
       },
       {
         name: 'normal',
-        nbBlocks: 25, // 5 min
-        defaultValue: 20000000000
+        nbBlocks: 3,
+        defaultValue: 1000000000
       },
       {
         name: 'economy',
-        nbBlocks: 50, // 10 minutes
-        multiplier: 0.9,
-        defaultValue: 15000000000
+        nbBlocks: 4,
+        defaultValue: 1000000000
       },
       {
         name: 'superEconomy',
-        nbBlocks: 75, // 15 minutes
-        multiplier: 0.8,
-        defaultValue: 10000000000
+        nbBlocks: 4,
+        defaultValue: 1000000000
+      }
+    ],
+    matic: [
+      {
+        name: 'urgent',
+        nbBlocks: 1,
+        defaultValue: 300000000000
+      },
+      {
+        name: 'priority',
+        nbBlocks: 2,
+        defaultValue: 250000000000
+      },
+      {
+        name: 'normal',
+        nbBlocks: 3,
+        defaultValue: 200000000000
+      },
+      {
+        name: 'economy',
+        nbBlocks: 4,
+        defaultValue: 200000000000
+      },
+      {
+        name: 'superEconomy',
+        nbBlocks: 4,
+        defaultValue: 200000000000
+      }
+    ],
+    arb: [
+      {
+        name: 'urgent',
+        nbBlocks: 1,
+        defaultValue: 3000000000
+      },
+      {
+        name: 'priority',
+        nbBlocks: 2,
+        defaultValue: 2500000000
+      },
+      {
+        name: 'normal',
+        nbBlocks: 3,
+        defaultValue: 2000000000
+      },
+      {
+        name: 'economy',
+        nbBlocks: 4,
+        defaultValue: 2000000000
+      },
+      {
+        name: 'superEconomy',
+        nbBlocks: 4,
+        defaultValue: 2000000000
+      }
+    ],
+    base: [
+      {
+        name: 'urgent',
+        nbBlocks: 1,
+        defaultValue: 3000000000
+      },
+      {
+        name: 'priority',
+        nbBlocks: 2,
+        defaultValue: 2500000000
+      },
+      {
+        name: 'normal',
+        nbBlocks: 3,
+        defaultValue: 2000000000
+      },
+      {
+        name: 'economy',
+        nbBlocks: 4,
+        defaultValue: 2000000000
+      },
+      {
+        name: 'superEconomy',
+        nbBlocks: 4,
+        defaultValue: 2000000000
+      }
+    ],
+    op: [
+      {
+        name: 'urgent',
+        nbBlocks: 1,
+        defaultValue: 3000000000
+      },
+      {
+        name: 'priority',
+        nbBlocks: 2,
+        defaultValue: 2500000000
+      },
+      {
+        name: 'normal',
+        nbBlocks: 3,
+        defaultValue: 2000000000
+      },
+      {
+        name: 'economy',
+        nbBlocks: 4,
+        defaultValue: 2000000000
+      },
+      {
+        name: 'superEconomy',
+        nbBlocks: 4,
+        defaultValue: 2000000000
+      }
+    ],
+    xrp: [
+      {
+        name: 'normal',
+        nbBlocks: 1, // 3 seconds
+        defaultValue: 12
+      }
+    ],
+    doge: [
+      {
+        name: 'normal',
+        nbBlocks: 2,
+        defaultValue: 100000000
+      }
+    ],
+    ltc: [
+      {
+        name: 'urgent',
+        nbBlocks: 2,
+        defaultValue: 150000
+      },
+      {
+        name: 'priority',
+        nbBlocks: 2,
+        defaultValue: 100000
+      },
+      {
+        name: 'normal',
+        nbBlocks: 3,
+        defaultValue: 100000
+      },
+      {
+        name: 'economy',
+        nbBlocks: 6,
+        defaultValue: 10000
+      },
+      {
+        name: 'superEconomy',
+        nbBlocks: 24,
+        defaultValue: 10000
       }
     ]
   },
@@ -138,7 +258,7 @@ module.exports = {
   UTXO_SELECTION_MAX_FEE_VS_SINGLE_UTXO_FEE_FACTOR: 5,
 
   // Minimum allowed amount for tx outputs (including change) in SAT
-  MIN_OUTPUT_AMOUNT: 5000,
+  MIN_OUTPUT_AMOUNT: 546,
 
   // Number of confirmations from which tx in history will be cached
   // (ie we consider them inmutables)
@@ -160,6 +280,15 @@ module.exports = {
   // Cache time fee levels (in ms)
   FEE_LEVEL_CACHE_DURATION: 6 * 60 * 1000,
 
+  // Cache time for latest copay version (in ms)
+  COPAY_VERSION_CACHE_DURATION: 6 * 60 * 1000,
+
+  // Oneinch token list cache duration (in ms)
+  ONE_INCH_CACHE_DURATION: 1 * 60 * 1000,
+
+  // Coingecko token rates cache duration (in ms)
+  COIN_GECKO_CACHE_DURATION: 5 * 60 * 1000,
+
   // Max allowed timespan for notification queries in seconds
   MAX_NOTIFICATIONS_TIMESPAN: 60 * 60 * 24 * 14, // ~ 2 weeks
   NOTIFICATIONS_TIMESPAN: 60,
@@ -172,8 +301,7 @@ module.exports = {
       delayAfter: 8, // begin slowing down responses after the 3rd request
       delayMs: 3000, // slow down subsequent responses by 3 seconds per request
       max: 15, // start blocking after 20 request
-      message:
-        'Too many wallets created from this IP, please try again after an hour'
+      message: 'Too many wallets created from this IP, please try again after an hour'
     },
     estimateFee: {
       windowMs: 60 * 10 * 1000, // 10 min window
@@ -189,8 +317,10 @@ module.exports = {
     //   max: 1200 , // 1 post every 3 sec average, max.
     // },
   },
-
   COIN: 'btc',
+  EVM_COIN: 'eth',
+  CHAIN: 'btc',
+  EVM_CHAIN: 'eth',
   INSIGHT_REQUEST_POOL_SIZE: 10,
   INSIGHT_TIMEOUT: 30000,
 
@@ -202,7 +332,91 @@ module.exports = {
 
   BE_KEY_SALT: 'bws-auth-keysalt',
 
-  NEW_BLOCK_THROTTLE_TIME_MIN: 5,
-
   BROADCAST_RETRY_TIME: 350, // ms
+
+  /*
+   *      COIN SPECIFIC
+   */
+
+  MAX_TX_SIZE_IN_KB_BTC: 100,
+
+  MAX_TX_SIZE_IN_KB_BCH: 100,
+
+  MAX_TX_SIZE_IN_KB_DOGE: 100,
+
+  // MAX_TX_SIZE_IN_KB_ETH: 500, // not used
+  // MAX_TX_SIZE_IN_KB_XRP: 1000, // not used
+
+  MAX_FEE_PER_KB: {
+    btc: 10000 * 1000, // 10k sat/b
+    bch: 10000 * 1000, // 10k sat/b
+    eth: 1000000000000, // 50 Gwei,
+    matic: 1000000000000, // 50 Gwei,
+    arb: 1000000000000, // 50 Gwei,
+    base: 1000000000000, // 50 Gwei,
+    op: 1000000000000, // 50 Gwei,
+    xrp: 1000000000000,
+    doge: 100000000 * 100,
+    ltc: 10000 * 1000 // 10k sat/b
+  },
+
+  MIN_TX_FEE: {
+    btc: 0,
+    bch: 0,
+    eth: 0,
+    matic: 0,
+    arb: 0,
+    base: 0,
+    op: 0,
+    xrp: 0,
+    doge: 0,
+    ltc: 0
+  },
+
+  MAX_TX_FEE: {
+    btc: 0.05 * 1e8,
+    bch: 0.05 * 1e8,
+    eth: 1 * 1e18, // 1 eth
+    matic: 1 * 1e18, // 1 matic
+    arb: 1 * 1e18, // 1 eth
+    base: 1 * 1e18, // 1 eth
+    op: 1 * 1e18, // 1 eth
+    xrp: 1 * 1e6, // 1 xrp
+    doge: 400 * 1e8,
+    ltc: 0.05 * 1e8
+  },
+
+  // ETH
+  DEFAULT_GAS_LIMIT: 60000,
+  DEFAULT_ERC20_GAS_LIMIT: 160000,
+  // Gas Limit per each multisend recipient
+  DEFAULT_MULTISEND_RECIPIENT_GAS_LIMIT: 45000,
+  DEFAULT_MULTISEND_RECIPIENT_ERC20_GAS_LIMIT: 65000,
+  MIN_GAS_LIMIT: 21000,
+
+  // Added buffer to account for variance between estimateGas and live execution
+  MS_GAS_LIMIT_BUFFER_PERCENT: 10 / 100,
+
+  // XRP has a non-refundable mininum activation fee / balance
+  MIN_XRP_BALANCE: 10000000,
+
+  // Time to get the latest push notification subscriptions. In ms.
+  PUSH_NOTIFICATION_SUBS_TIME: 10 * 60 * 1000, // 10 min.
+
+  PUSH_NOTIFICATION_LIMIT: 10,
+
+  FIAT_CURRENCIES: [
+    { code: 'USD', name: 'US Dollar' },
+    { code: 'INR', name: 'Indian Rupee' },
+    { code: 'GBP', name: 'Pound Sterling' },
+    { code: 'EUR', name: 'Eurozone Euro' },
+    { code: 'CAD', name: 'Canadian Dollar' },
+    { code: 'COP', name: 'Colombian Peso' },
+    { code: 'NGN', name: 'Nigerian Naira' },
+    { code: 'BRL', name: 'Brazilian Real' },
+    { code: 'ARS', name: 'Argentine Peso' },
+    { code: 'AUD', name: 'Australian Dollar' },
+    { code: 'JPY', name: 'Japanese Yen' },
+    { code: 'NZD', name: 'New Zealand Dollar' }
+  ],
 };

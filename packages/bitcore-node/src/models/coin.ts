@@ -1,12 +1,14 @@
+import { CollectionAggregationOptions, ObjectID } from 'mongodb';
 import { LoggifyClass } from '../decorators/Loggify';
-import { BaseModel, MongoBound } from './base';
-import { ObjectID, CollectionAggregationOptions } from 'mongodb';
-import { SpentHeightIndicators, CoinJSON } from '../types/Coin';
-import { valueOrDefault } from '../utils/check';
+import logger from '../logger';
+import { Libs } from '../providers/libs';
 import { StorageService } from '../services/storage';
+import { CoinJSON, SpentHeightIndicators } from '../types/Coin';
+import { valueOrDefault } from '../utils';
+import { BaseModel, MongoBound } from './base';
 import { BitcoinBlockStorage } from './block';
 
-export type ICoin = {
+export interface ICoin {
   network: string;
   chain: string;
   mintTxid: string;
@@ -21,7 +23,7 @@ export type ICoin = {
   spentHeight: number;
   confirmations?: number;
   sequenceNumber?: number;
-};
+}
 
 @LoggifyClass
 export class CoinModel extends BaseModel<ICoin> {
@@ -119,7 +121,7 @@ export class CoinModel extends BaseModel<ICoin> {
     const combinedQuery = Object.assign(
       {},
       {
-        $or: [{ spentHeight: { $gt: blockHeight } }, { spentHeight: SpentHeightIndicators.unspent }],
+        $or: [{ spentHeight: { $gt: blockHeight } }, { spentHeight: { $lt: SpentHeightIndicators.minimum } }],
         mintHeight: { $lte: blockHeight }
       },
       query
@@ -187,6 +189,27 @@ export class CoinModel extends BaseModel<ICoin> {
   }
 
   _apiTransform(coin: Partial<MongoBound<ICoin>>, options?: { object: boolean }): any {
+    // try to parse coin.address if its 'false' and script exists
+    if (coin.address == 'false' && coin.script != undefined && coin.script.toString() != '') {
+      try {
+        const lib = Libs.get(coin.chain).lib;
+        const address = lib
+          .Script(coin.script.toString('hex'))
+          .toAddress(coin.network)
+          .toString();
+
+        if (lib.Address.isValid(address, coin.network)) {
+          coin.address = address;
+          // update coin record in db - do it asynchronously as we don't need to wait for result
+          CoinStorage.collection.updateOne({ _id: coin._id }, { $set: { address: coin.address } });
+        }
+      } catch (e) {
+        logger.debug(
+          `Could not parse address on "${coin.chain}:${coin.network}" for coin ${coin.mintTxid}[${coin.mintIndex}]`
+        );
+      }
+    }
+
     const transform: CoinJSON = {
       _id: valueOrDefault(coin._id, new ObjectID()).toHexString(),
       chain: valueOrDefault(coin.chain, ''),

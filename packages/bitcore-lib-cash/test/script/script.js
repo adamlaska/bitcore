@@ -374,10 +374,6 @@ describe('Script', function() {
       Script('70 0x3043021f336721e4343f67c835cbfd465477db09073dc38a936f9c445d573c1c8a7fdf022064b0e3cb6892a9ecf870030e3066bc259e1f24841c9471d97f9be08b73f6530701 33 0x1270b2e1dcaa8f51cb0ead1221dd8cb31721502b3b5b7d4b374d263dfec63a4369').isPublicKeyHashIn().should.equal(false);
     });
 
-    it('should identify this known non-pubkeyhashin (bad signature version)', function() {
-      Script('70 0x4043021f336721e4343f67c835cbfd465477db09073dc38a936f9c445d573c1c8a7fdf022064b0e3cb6892a9ecf870030e3066bc259e1f24841c9471d97f9be08b73f6530701 33 0x0370b2e1dcaa8f51cb0ead1221dd8cb31721502b3b5b7d4b374d263dfec63a4369').isPublicKeyHashIn().should.equal(false);
-    });
-
     it('should identify this known non-pubkeyhashin (no public key)', function() {
       Script('70 0x3043021f336721e4343f67c835cbfd465477db09073dc38a936f9c445d573c1c8a7fdf022064b0e3cb6892a9ecf870030e3066bc259e1f24841c9471d97f9be08b73f6530701 OP_CHECKSIG').isPublicKeyHashIn().should.equal(false);
     });
@@ -891,6 +887,22 @@ describe('Script', function() {
       Script().add(buf).checkMinimalPush(0).should.equal(true);
     });
 
+  });
+
+  describe('#getPublicKey', () => {
+    const publicKey = PublicKey.fromString('02371b6955629ea6fd014b9e14612e72de2729d33ff26ad20b9e7c558c6a611221');
+    it('should return the public key for a public key output', () => {
+      const publicKeyOutput = Script.buildPublicKeyOut(publicKey);
+      const retrievedPublicKey = publicKeyOutput.getPublicKey();
+      retrievedPublicKey.toString('hex').should.equal(publicKey.toString('hex'));
+    })
+    it('should return the public key for a public key hash input', () => {
+      const signature = bitcore.crypto.Signature.fromString('e4acdce75b9033de8f3b0384f1e8eba3be6aade38b2c3ea17037b57ccf3c6b82589b6e39d8cd375839fa8990faa45948a70b07dec76140c956d48586404f3123');
+      const sigtype = 0x41;
+      const publicKeyHashInput = Script.buildPublicKeyHashIn(publicKey, signature, sigtype);
+      const retrievedPublicKey = publicKeyHashInput.getPublicKey();
+      retrievedPublicKey.toString('hex').should.equal(publicKey.toString('hex'));
+    });
   });
 
   describe('getData returns associated data', function() {

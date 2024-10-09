@@ -1,7 +1,7 @@
-import { homedir, cpus } from 'os';
-import parseArgv from './utils/parseArgv';
-import { ConfigType } from './types/Config';
 import * as _ from 'lodash';
+import { cpus, homedir } from 'os';
+import { ConfigType } from './types/Config';
+import parseArgv from './utils/parseArgv';
 let program = parseArgv([], ['config']);
 
 function findConfig(): ConfigType | undefined {
@@ -41,8 +41,8 @@ function setTrustedPeers(config: ConfigType): ConfigType {
       if (env[envString]) {
         let peers = config.chains[chain][network].trustedPeers || [];
         peers.push({
-          host: env[envString],
-          port: env[`${envString}_PORT`]
+          host: env[envString] as string,
+          port: env[`${envString}_PORT`] as string
         });
         config.chains[chain][network].trustedPeers = peers;
       }
@@ -62,7 +62,10 @@ const Config = function(): ConfigType {
     dbPass: process.env.DB_PASS || '',
     numWorkers: cpus().length,
     chains: {},
-    modules: ['./bitcoin', './bitcoin-cash', './ethereum'],
+    aliasMapping: {
+      chains: {},
+      networks: {}
+    },
     services: {
       api: {
         rateLimiter: {
@@ -71,7 +74,7 @@ const Config = function(): ConfigType {
         },
         wallets: {
           allowCreationBeforeCompleteSync: false,
-          allowUnauthenticatedCalls: true
+          allowUnauthenticatedCalls: false
         }
       },
       event: {
@@ -82,6 +85,11 @@ const Config = function(): ConfigType {
         bwsKeys: []
       },
       storage: {}
+    },
+    externalProviders: {
+      moralis: {
+        apiKey: 'string'
+      }
     }
   };
 
@@ -103,6 +111,9 @@ const Config = function(): ConfigType {
         }
       }
     });
+  }
+  if ((config as any).modules) {
+    throw new Error('The config modules has moved! You can remove the `modules` array from your config to use the defaults, or if you need to use custom modules then you can specify the paths in the specific chain-network config objects with `modulePath`');
   }
   config = setTrustedPeers(config);
   return config;
