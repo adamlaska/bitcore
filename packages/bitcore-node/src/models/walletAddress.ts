@@ -1,20 +1,20 @@
-import { CoinStorage, ICoin } from './coin';
-import { TransformOptions } from '../types/TransformOptions';
 import { ObjectID } from 'mongodb';
-import { BaseModel } from './base';
-import { IWallet } from './wallet';
-import { TransactionStorage } from './transaction';
-import { StorageService } from '../services/storage';
-import { partition } from '../utils/partition';
 import { Readable, Transform, Writable } from 'stream';
+import { StorageService } from '../services/storage';
+import { TransformOptions } from '../types/TransformOptions';
+import { partition } from '../utils';
+import { BaseModel } from './base';
+import { CoinStorage, ICoin } from './coin';
+import { TransactionStorage } from './transaction';
+import { IWallet } from './wallet';
 
-export type IWalletAddress = {
+export interface IWalletAddress {
   wallet: ObjectID;
   address: string;
   chain: string;
   network: string;
   processed: boolean;
-};
+}
 
 export class WalletAddressModel extends BaseModel<IWalletAddress> {
   constructor(storage?: StorageService) {
@@ -26,6 +26,7 @@ export class WalletAddressModel extends BaseModel<IWalletAddress> {
   onConnect() {
     this.collection.createIndex({ chain: 1, network: 1, address: 1, wallet: 1 }, { background: true, unique: true });
     this.collection.createIndex({ chain: 1, network: 1, wallet: 1, address: 1 }, { background: true, unique: true });
+    this.collection.createIndex({ chain: 1, network: 1, address: 1, lastQueryTime: 1 }, { background: true, sparse: true });
   }
 
   _apiTransform(walletAddress: { address: string }, options?: TransformOptions) {
@@ -64,10 +65,12 @@ export class WalletAddressModel extends BaseModel<IWalletAddress> {
       }
       async _transform(addressBatch, _, callback) {
         try {
-          let exists = (await WalletAddressStorage.collection
-            .find({ chain, network, wallet: wallet._id, address: { $in: addressBatch } })
-            .project({ address: 1, processed: 1 })
-            .toArray())
+          let exists = (
+            await WalletAddressStorage.collection
+              .find({ chain, network, wallet: wallet._id, address: { $in: addressBatch } })
+              .project({ address: 1, processed: 1 })
+              .toArray()
+          )
             .filter(walletAddress => walletAddress.processed)
             .map(walletAddress => walletAddress.address);
           this.push(
@@ -101,8 +104,7 @@ export class WalletAddressModel extends BaseModel<IWalletAddress> {
             })
           ),
             { ordered: false };
-
-        } catch (err) {
+        } catch (err: any) {
           // Ignore duplicate keys, they may be half processed
           if (err.code !== 11000) {
             return callback(err);
@@ -243,7 +245,7 @@ export class WalletAddressModel extends BaseModel<IWalletAddress> {
         return reject(err);
       });
     };
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       markProcessedStream.on('unpipe', () => {
         return resolve();
       });
@@ -263,6 +265,11 @@ export class WalletAddressModel extends BaseModel<IWalletAddress> {
         .pipe(txUpdaterStream)
         .pipe(markProcessedStream);
     });
+  }
+
+  async updateLastQueryTime(params: { chain: string; network: string; address: string }) {
+    const { chain, network, address } = params;
+    return this.collection.updateOne({ chain, network, address }, { $set: { lastQueryTime: new Date() } });
   }
 }
 

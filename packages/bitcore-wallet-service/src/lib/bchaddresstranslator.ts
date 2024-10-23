@@ -34,7 +34,7 @@ export class BCHAddressTranslator {
       ret = addresses;
     } else {
       ret = _.filter(
-        _.map(addresses, (x) => {
+        _.map(addresses, x => {
           const bitcore = Bitcore_[from == 'legacy' ? 'btc' : 'bch'];
           let orig;
 
@@ -58,5 +58,3 @@ export class BCHAddressTranslator {
     else return ret[0];
   }
 }
-
-module.exports = BCHAddressTranslator;

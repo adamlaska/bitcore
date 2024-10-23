@@ -15,7 +15,7 @@ var Bitcore_ = {
   bch: require('bitcore-lib-cash')
 };
 
-var Common = require('../../ts_build/lib/common');
+var { Common } = require('../../ts_build/lib/common');
 var Utils = Common.Utils;
 var Constants = Common.Constants;
 var Defaults = Common.Defaults;
@@ -31,6 +31,8 @@ var storage, blockchainExplorer, request;
 
 
 describe('History', function() {
+  this.timeout(5000);
+  
   before(function(done) {
     helpers.before((res) => {
       done();
@@ -688,7 +690,7 @@ describe('History', function() {
           }, function(err, tx) {
             should.not.exist(err);
 
-            helpers.stubBroadcast();
+            helpers.stubBroadcast(tx.txid);
             server.broadcastTx({
               txProposalId: tx.id
             }, function(err, txp) {
@@ -786,7 +788,7 @@ describe('History', function() {
           }, function(err, tx) {
             should.not.exist(err);
 
-            helpers.stubBroadcast();
+            helpers.stubBroadcast(tx.txid);
             server.broadcastTx({
               txProposalId: tx.id
             }, function(err, txp) {
@@ -949,30 +951,51 @@ describe('History', function() {
         done();
       });
     });
-    it.skip('should handle invalid tx in  history ', function(done) {
-      var h = _.clone(TestData.history);
-      h.push({
-        txid: 'xx'
-      })
-      helpers.stubHistory(h, BCHEIGHT);
-      var l = TestData.history.length;
+
+    it('should handle ETH/w ERC20 history  history ', function(done) {
+      helpers.stubHistory();
+      helpers.stubHistory(null, null, TestData.historyETH);
 
       server.getTxHistory({}, function(err, txs) {
         should.not.exist(err);
-        should.exist(txs);
-        txs.length.should.equal(l + 1);
-        txs[l].action.should.equal('invalid');
+        should.exist(txs)
+        txs.length.should.equal(9);
+        txs[2].should.deep.equal({
+          id: '5ddbf28d4ff191801711a948',
+          txid:
+          '0xf992febe3257518c00c09ae96cafe988dfe5b625bbf5515b679807f650f58e88',
+          confirmations: 0,
+          blockheight: 8999242,
+          fees: 1100740000000000,
+          time: 1574695599,
+          size: undefined,
+          amount: 0,
+          action: 'sent',
+          addressTo: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          outputs:
+          [ { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            amount: 0 } ],
+          internal: [],
+          dust: false,
+          abiType: '{"type":"ERC20","name":"transfer","params":[{"name":"_to","value":"0xeca2486a6a213fb40537658d7360ab6221eb26be","type":"address"},{"name":"_tokenId","value":"3000000","type":"uint256"}]}',
+          effects: undefined,
+          error: undefined,
+          network: 'sepolia',
+          chain: 'ETH',
+          data: '0x',
+          nonce: 57,
+          gasPrice: 2500000000,
+          gasLimit: 163759,
+          receipt: undefined,
+          lowFees: false,
+          maxGasFee: undefined,
+          priorityGasFee: undefined,
+          txType: undefined,
+        });
         done();
       });
     });
-    it.skip('should handle exceeded limit', function(done) {
-      server.getTxHistory({
-        limit: 1000
-      }, function(err, txs) {
-        err.code.should.equal('HISTORY_LIMIT_EXCEEDED');
-        done();
-      });
-    });
+
     it.skip('should set lowFees atribute for sub-superEconomy level fees on unconfirmed txs', function(done) {
       helpers.stubFeeLevels({
         24: 10000,

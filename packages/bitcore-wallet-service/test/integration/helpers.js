@@ -1,5 +1,7 @@
 'use strict';
-
+// Node >= 17 started attempting to resolve all dns listings by ipv6 first, these lines are required to make it check ipv4 first
+var { setDefaultResultOrder } = require('dns');
+setDefaultResultOrder('ipv4first');
 var _ = require('lodash');
 var async = require('async');
 
@@ -17,10 +19,13 @@ var config = require('../test-config');
 var Bitcore = require('bitcore-lib');
 var Bitcore_ = {
   btc: Bitcore,
-  bch: require('bitcore-lib-cash')
+  bch: require('bitcore-lib-cash'),
+  doge: require('bitcore-lib-doge'),
+  ltc: require('bitcore-lib-ltc')
 };
 
-var Common = require('../../ts_build/lib/common');
+var { ChainService } = require('../../ts_build/lib/chain/index');
+var { Common } = require('../../ts_build/lib/common');
 var Utils = Common.Utils;
 var Constants = Common.Constants;
 var Defaults = Common.Defaults;
@@ -44,9 +49,9 @@ helpers.before = function(cb) {
   function getDb(cb) {
     if (useMongoDb) {
       var mongodb = require('mongodb');
-      mongodb.MongoClient.connect(config.mongoDb.uri, function(err, db) {
+      mongodb.MongoClient.connect(config.mongoDb.uri, { useUnifiedTopology: true }, function(err, client) {
         if (err) throw err;
-        return cb(db);
+        return cb(client.db(config.mongoDb.dbname));
       });
     } else {
       throw "tingodb not longer supported";
@@ -66,10 +71,14 @@ helpers.before = function(cb) {
     be.getAddressUtxos = sinon.stub().callsArgWith(2, null, []);
     be.getCheckData = sinon.stub().callsArgWith(1, null, {sum: 100});
     be.getUtxos = sinon.stub().callsArgWith(1, null,[]);
+    be.getTransactions = sinon.stub().callsArgWith(2, null,[]);
     be.getBlockchainHeight = sinon.stub().callsArgWith(0, null, 1000, 'hash');
-    be.estimateGas = sinon.stub().callsArgWith(1, null, '21000');
+    be.estimateGas = sinon.stub().callsArgWith(1, null, Defaults.MIN_GAS_LIMIT);
     be.getBalance = sinon.stub().callsArgWith(1, null, {unconfirmed:0, confirmed: '10000000000', balance: '10000000000' });
-    be.getTransactionCount = sinon.stub().callsArgWith(1, null, '0');
+    be.getReserve = sinon.stub().callsArgWith(0, null, Defaults.MIN_XRP_BALANCE);
+
+    // just a number >0 (xrp does not accept 0)
+    be.getTransactionCount = sinon.stub().callsArgWith(1, null, '5');
 
 
     var opts = {
@@ -90,7 +99,7 @@ helpers.beforeEach = function(cb) {
   let be = blockchainExplorer;
   be.register = sinon.stub().callsArgWith(1, null, null);
   be.addAddresses = sinon.stub().callsArgWith(2, null, null);
- 
+
   // TODO
   const collections = {
     WALLETS: 'wallets',
@@ -111,7 +120,7 @@ helpers.beforeEach = function(cb) {
 
 
   async.each(_.values(collections), (x, icb)=> {
-    storage.db.collection(x).remove({}, icb);
+    storage.db.collection(x).deleteMany({}, icb);
   }, (err) => {
     should.not.exist(err);
     var opts = {
@@ -139,9 +148,10 @@ helpers.getStorage = function() {
   return storage;
 };
 
-helpers.signMessage = function(text, privKey) {
+helpers.signMessage = function(message, privKey) {
   var priv = new Bitcore.PrivateKey(privKey);
-  var hash = Utils.hashMessage(text);
+  const flattenedMessage = _.isArray(message)? _.join(message) : message;
+  var hash = Utils.hashMessage(flattenedMessage);
   return Bitcore.crypto.ECDSA.sign(hash, priv, 'little').toString();
 };
 
@@ -242,21 +252,22 @@ helpers.createAndJoinWallet = function(m, n, opts, cb) {
     coin: opts.coin || 'btc',
     network: opts.network || 'livenet',
     nativeCashAddr: opts.nativeCashAddr,
+    useNativeSegwit: opts.useNativeSegwit,
+    segwitVersion: opts.segwitVersion,
   };
-  
+
   if (_.isBoolean(opts.supportBIP44AndP2PKH))
     walletOpts.supportBIP44AndP2PKH = opts.supportBIP44AndP2PKH;
 
   server.createWallet(walletOpts, function(err, walletId) {
-    if (err) return cb(err);
+    if (err) throw err;
 
     async.eachSeries(_.range(n), function(i, cb) {
       var copayerData = TestData.copayers[i + offset];
 
-
-    var pub = (_.isBoolean(opts.supportBIP44AndP2PKH) && !opts.supportBIP44AndP2PKH) ? copayerData.xPubKey_45H : copayerData.xPubKey_44H_0H_0H;
-
-      if (opts.network == 'testnet') {
+      var pub = (_.isBoolean(opts.supportBIP44AndP2PKH) && !opts.supportBIP44AndP2PKH) ? copayerData.xPubKey_45H : copayerData.xPubKey_44H_0H_0H;
+      const aliases = Constants.NETWORK_ALIASES[walletOpts.coin];
+      if ((aliases && aliases.testnet && aliases.testnet == opts.network) || opts.network == 'testnet') {
         if (opts.coin == 'btc' || opts.coin == 'bch') {
           pub = copayerData.xPubKey_44H_0H_0Ht;
         } else {
@@ -276,8 +287,7 @@ helpers.createAndJoinWallet = function(m, n, opts, cb) {
         copayerOpts.supportBIP44AndP2PKH = opts.supportBIP44AndP2PKH;
 
       server.joinWallet(copayerOpts, function(err, result) {
-        if (err) console.log(err);
-        should.not.exist(err);
+        if (err) throw err;
         copayerIds.push(result.copayerId);
         return cb(err);
       });
@@ -301,7 +311,7 @@ helpers.createAndJoinWallet = function(m, n, opts, cb) {
 
 
 helpers.randomTXID = function() {
-  return Bitcore.crypto.Hash.sha256(new Buffer(Math.random() * 100000)).toString('hex');;
+  return Bitcore.crypto.Hash.sha256(Buffer.from((Math.random() * 100000).toString())).toString('hex');;
 };
 
 helpers.toSatoshi = function(btc) {
@@ -352,12 +362,35 @@ helpers.stubUtxos = function(server, wallet, amounts, opts, cb) {
   }
   opts = opts || {};
 
+  if (opts.tokenAddress) {
+    amounts = _.isArray(amounts) ? amounts : [amounts];
+    blockchainExplorer.getBalance = function(opts, cb) {
+      if (opts.tokenAddress) {
+        return cb(null, {unconfirmed:0, confirmed: 2e6, balance: 2e6 });
+      }
+      let conf =  _.sum(_.map(amounts, x =>  Number((x*1e18).toFixed(0))));
+      return cb(null, {unconfirmed:0, confirmed: conf, balance: conf });
+    }
+    blockchainExplorer.estimateFee = sinon.stub().callsArgWith(1, null, 20000000000);
+    return cb();
+  }
+
   if (wallet.coin == 'eth') {
     amounts = _.isArray(amounts) ? amounts : [amounts];
     let conf =  _.sum(_.map(amounts, x =>  Number((x*1e18).toFixed(0))));
     blockchainExplorer.getBalance = sinon.stub().callsArgWith(1, null, {unconfirmed:0, confirmed: conf, balance: conf });
     return cb();
   }
+
+  if (wallet.coin == 'xrp') {
+    amounts = _.isArray(amounts) ? amounts : [amounts];
+    let conf =  _.sum(_.map(amounts, x =>  Number((x*1e6).toFixed(0))));
+    conf =  conf + Defaults.MIN_XRP_BALANCE;
+    blockchainExplorer.getBalance = sinon.stub().callsArgWith(1, null, {unconfirmed:0, confirmed: conf, balance: conf });
+    return cb();
+  }
+
+
 
   if (!helpers._utxos) helpers._utxos = {};
 
@@ -388,8 +421,17 @@ helpers.stubUtxos = function(server, wallet, amounts, opts, cb) {
           case Constants.SCRIPT_TYPES.P2PKH:
             scriptPubKey = S.buildPublicKeyHashOut(address.address);
             break;
+          case Constants.SCRIPT_TYPES.P2WPKH:
+            scriptPubKey = S.buildWitnessV0Out(address.address);
+            break;
+          case Constants.SCRIPT_TYPES.P2WSH:
+            scriptPubKey = S.buildWitnessV0Out(address.address);
+            break;
+          case Constants.SCRIPT_TYPES.P2TR:
+            scriptPubKey = S.buildWitnessV1Out(address.address);
+            break;
         }
-        should.exist(scriptPubKey);
+        should.exist(scriptPubKey, 'unknown address type:' + wallet.addressType);
 
         return {
           txid: helpers.randomTXID(),
@@ -432,8 +474,8 @@ helpers.stubUtxos = function(server, wallet, amounts, opts, cb) {
   });
 };
 
-helpers.stubBroadcast = function(thirdPartyBroadcast) {
-  blockchainExplorer.broadcast = sinon.stub().callsArgWith(1, null, '112233');
+helpers.stubBroadcast = function(txid) {
+  blockchainExplorer.broadcast = sinon.stub().callsArgWith(1, null, txid || '112233');
   blockchainExplorer.getTransaction = sinon.stub().callsArgWith(1, null, null);
 };
 
@@ -493,7 +535,7 @@ helpers.stubCheckData = function(bc, server, isBCH, cb) {
 helpers.stubFeeLevels = function(levels, fill, coin) {
   coin = coin || 'btc';
   let div = 1;
-  if (coin == 'btc' || coin == 'bch') {
+  if (coin == 'btc' || coin == 'bch' || coin == 'doge' || coin == 'ltc') {
     div = 1e8;  // bitcoind returns values in BTC amounts
   }
 
@@ -548,17 +590,25 @@ helpers.clientSign = function(txp, derivedXPrivKey) {
   var xpriv = new Bitcore.HDPrivateKey(derivedXPrivKey, txp.network);
 
   switch(txp.coin) {
-    case 'eth': 
+    case 'eth':
+    case 'xrp':
 
       // For eth => account, 0, change = 0
       const priv =  xpriv.derive('m/0/0').privateKey;
       const privKey = priv.toString('hex');
-      const rawTx = txp.getBitcoreTx().uncheckedSerialize();
-      signatures = [CWC.Transactions.getSignature({
-        chain: 'ETH',
-        tx: rawTx,
-        key: {privKey},
-      })];
+      let tx = ChainService.getBitcoreTx(txp).uncheckedSerialize();
+      const isERC20 = txp.tokenAddress && !txp.payProUrl;
+      const chain = isERC20 ? ChainService.getChain(txp.coin) + 'ERC20' : ChainService.getChain(txp.coin);
+      tx = typeof tx === 'string'? [tx] : tx;
+      signatures = [];
+      for (const rawTx of tx) {
+        const signed = CWC.Transactions.getSignature({
+          chain: chain.toUpperCase(),
+          tx: rawTx,
+          key: { privKey: privKey.toString('hex') },
+        });
+        signatures.push(signed);
+      }
       break;
     default:
       _.each(txp.inputs, function(i) {
@@ -568,13 +618,13 @@ helpers.clientSign = function(txp, derivedXPrivKey) {
         }
       });
 
-      var t = txp.getBitcoreTx();
+      var t = ChainService.getBitcoreTx(txp);
       signatures = _.map(privs, function(priv, i) {
-        return t.getSignatures(priv);
+        return t.getSignatures(priv, undefined, txp.signingMethod);
       });
 
       signatures = _.map(_.sortBy(_.flatten(signatures), 'inputIndex'), function(s) {
-        return s.signature.toDER().toString('hex');
+        return s.signature.toDER(txp.signingMethod).toString('hex');
       });
   };
 

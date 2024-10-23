@@ -1,12 +1,22 @@
-import { StorageService } from '../services/storage';
-import { BaseModel } from './base';
 import { ObjectID } from 'mongodb';
 import os from 'os';
+import { StorageService } from '../services/storage';
+import { BaseModel } from './base';
 
-export type IState = {
+export interface IState {
   _id?: ObjectID;
   initialSyncComplete: any;
-};
+  verifiedBlockHeight?: {
+    [chain: string]: {
+      [network: string]: number;
+    };
+  };
+  lastAddressSubscriptionUpdate?: {
+    [chain: string]: {
+      [network: string]: Date;
+    }
+  }
+}
 
 export class StateModel extends BaseModel<IState> {
   constructor(storage?: StorageService) {
@@ -51,6 +61,30 @@ export class StateModel extends BaseModel<IState> {
     return this.collection.findOneAndUpdate(
       { _id: singleState.value!._id, [`syncingNode:${chain}:${network}`]: lastHeartBeat },
       { $unset: { [`syncingNode:${chain}:${network}`]: true } }
+    );
+  }
+
+  setVerifiedBlockHeight(params: { chain: string; network: string; height: number}) {
+    const { chain, network, height } = params;
+    return this.collection.updateOne(
+      {},
+      {
+        $addToSet: { initialSyncComplete: `${chain}:${network}` },
+        $set: { [`verifiedBlockHeight.${chain}.${network}`]: height }
+      },
+      { upsert: true }
+    );
+  }
+
+  setLastAddressSubscriptionUpdate(params: { chain: string; network: string; timestamp: Date}) {
+    const { chain, network, timestamp } = params;
+    return this.collection.updateOne(
+      {},
+      {
+        $addToSet: { initialSyncComplete: `${chain}:${network}` },
+        $set: { [`lastAddressSubscriptionUpdate.${chain}.${network}`]: timestamp }
+      },
+      { upsert: true }
     );
   }
 }

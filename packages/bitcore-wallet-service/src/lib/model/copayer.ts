@@ -1,9 +1,9 @@
+import { Common } from '../common';
 import { Address } from './address';
 import { AddressManager } from './addressmanager';
 
 const $ = require('preconditions').singleton();
 const sjcl = require('sjcl');
-const Common = require('../common');
 const Constants = Common.Constants,
   Defaults = Common.Defaults,
   Utils = Common.Utils;
@@ -28,7 +28,9 @@ export class Copayer {
   version: number;
   createdOn: number;
   coin: string;
+  chain: string;
   xPubKey: string;
+  hardwareSourcePublicKey: string;
   id: string;
   name: string;
   requestPubKey: string;
@@ -48,14 +50,13 @@ export class Copayer {
 
   static create(opts) {
     opts = opts || {};
-    $.checkArgument(opts.xPubKey, 'Missing copayer extended public key')
-      .checkArgument(opts.requestPubKey, 'Missing copayer request public key')
-      .checkArgument(
-        opts.signature,
-        'Missing copayer request public key signature'
-      );
+    if (!opts.hardwareSourcePublicKey) {
+      $.checkArgument(opts.xPubKey, 'Missing copayer extended public key')
+    }
+    $.checkArgument(opts.requestPubKey, 'Missing copayer request public key')
+      .checkArgument(opts.signature, 'Missing copayer request public key signature');
 
-    $.checkArgument(Utils.checkValueInCollection(opts.coin, Constants.COINS));
+    $.checkArgument(Utils.checkValueInCollection(opts.coin, Constants.CHAINS));
 
     opts.copayerIndex = opts.copayerIndex || 0;
 
@@ -64,8 +65,10 @@ export class Copayer {
     x.version = 2;
     x.createdOn = Math.floor(Date.now() / 1000);
     x.coin = opts.coin;
+    x.chain = opts.chain || opts.coin;
     x.xPubKey = opts.xPubKey;
-    x.id = Copayer._xPubToCopayerId(opts.coin, x.xPubKey);
+    x.hardwareSourcePublicKey = opts.hardwareSourcePublicKey;
+    x.id = Copayer._xPubToCopayerId(opts.chain, x.xPubKey);
     x.name = opts.name;
     x.requestPubKey = opts.requestPubKey;
     x.signature = opts.signature;
@@ -76,8 +79,7 @@ export class Copayer {
       }
     ];
 
-    const derivationStrategy =
-      opts.derivationStrategy || Constants.DERIVATION_STRATEGIES.BIP45;
+    const derivationStrategy = opts.derivationStrategy || Constants.DERIVATION_STRATEGIES.BIP45;
     if (AddressManager.supportsCopayerBranches(derivationStrategy)) {
       x.addressManager = AddressManager.fromObj({
         derivationStrategy,
@@ -96,9 +98,11 @@ export class Copayer {
     x.version = obj.version;
     x.createdOn = obj.createdOn;
     x.coin = obj.coin || Defaults.COIN;
+    x.chain = obj.chain || x.coin;
     x.id = obj.id;
     x.name = obj.name;
     x.xPubKey = obj.xPubKey;
+    x.hardwareSourcePublicKey = obj.hardwareSourcePublicKey;
     x.requestPubKey = obj.requestPubKey;
     x.signature = obj.signature;
 
@@ -123,7 +127,7 @@ export class Copayer {
   }
 
   createAddress(wallet, isChange) {
-    $.checkState(wallet.isComplete());
+    $.checkState(wallet.isComplete(), 'Failed state: wallet incomplete at <createAddress()>');
 
     const path = this.addressManager.getNewAddressPath(isChange);
     const address = Address.derive(
@@ -134,7 +138,8 @@ export class Copayer {
       wallet.m,
       wallet.coin,
       wallet.network,
-      isChange
+      isChange,
+      wallet.chain
     );
     return address;
   }

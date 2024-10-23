@@ -1,21 +1,22 @@
 #!/usr/bin/env node
 'use strict';
 
+const program = require('commander');
 const { Transform } = require('stream');
-const { Storage } = require('../ts_build/storage');
-const { Wallet } = require('../ts_build/wallet');
-const program = require('../ts_build/program');
+const { Storage } = require('../ts_build/src/storage');
+const { Wallet } = require('../ts_build/src/wallet');
 
 program
   .version(require('../package.json').version)
-  .option('--path [path]', 'optional - Where wallets are stored')
-  .option('--chain [chain]', 'Chain to get balances from')
-  .option('--network [network]', 'Network to get balances from')
-  .option('--name [name]', 'regex matching wallet name')
-  .option('--time [time]', 'optional - Get balance at specific time')
+  .option('--chain <chain>', 'optional - Chain to get balances from')
+  .option('--network <network>', 'optional - Network to get balances from')
+  .option('--name <name>', 'optregex matching wallet name')
+  .option('--time <time>', 'optional - Get balance at specific time')
+  .option('--storageType <storageType>', 'optional - the name of the database (default Level)')
+  .option('--path <path>', 'optional - Where wallets are stored')
   .parse(process.argv);
 
-const { path, chain, network, time, name: regex } = program;
+const { path, chain, network, time, name: regex, storageType = 'Level' } = program.opts();
 const regExp = new RegExp(regex);
 
 const parser = new Transform({
@@ -52,9 +53,9 @@ const getBalance = new Transform({
   writableObjectMode: true,
   readableObjectMode: false,
   transform (wallet, encoding, callback) {
-    const { name, chain, network } = wallet;
-    Wallet.loadWallet({ name, path })
-      .then(wallet => wallet.getBalance(time))
+    const { name, chain, network, storageType } = wallet;
+    Wallet.loadWallet({ name, path, storageType })
+      .then(wallet => wallet.getBalance({ time }))
       .then(balance => {
         const { confirmed } = balance;
         callback(null, `${name}: ${confirmed / 1e8} ${chain} (${network})\n`);
@@ -63,11 +64,14 @@ const getBalance = new Transform({
   }
 });
 
-const storage = new Storage({createIfMissing: false, errorIfExists: false, path});
+const storage = new Storage({createIfMissing: false, errorIfExists: false, path, storageType});
 storage.listWallets()
-  .pipe(parser)
-  .on('error', err => console.log(err))
-  .pipe(filterStream)
-  .pipe(getBalance)
-  .on('error', err => console.log(err))
-  .pipe(process.stdout);
+  .then(stream => {
+    stream
+      .pipe(parser)
+      .on('error', err => console.log(err))
+      .pipe(filterStream)
+      .pipe(getBalance)
+      .on('error', err => console.log(err))
+      .pipe(process.stdout);
+  });

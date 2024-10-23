@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-import { BitcoinBlockStorage, IBtcBlock } from '../../src/models/block';
-import { AsyncRPC } from '../../src/rpc';
 import { expect } from 'chai';
-import { TransactionStorage, IBtcTransaction } from '../../src/models/transaction';
-import { CoinStorage } from '../../src/models/coin';
-import { ChainNetwork } from '../../src/types/ChainNetwork';
-import { WalletAddressStorage } from '../../src/models/walletAddress';
-import { Storage } from '../../src/services/storage';
 import config from '../../src/config';
 import logger from '../../src/logger';
+import { BitcoinBlockStorage, IBtcBlock } from '../../src/models/block';
+import { CoinStorage } from '../../src/models/coin';
+import { IBtcTransaction, TransactionStorage } from '../../src/models/transaction';
+import { WalletAddressStorage } from '../../src/models/walletAddress';
 import { ChainStateProvider } from '../../src/providers/chain-state';
+import { AsyncRPC } from '../../src/rpc';
+import { Storage } from '../../src/services/storage';
+import { ChainNetwork } from '../../src/types/ChainNetwork';
+import { IUtxoNetworkConfig } from '../../src/types/Config';
 
 const SATOSHI = 100000000.0;
 
@@ -19,7 +20,7 @@ export async function blocks(
     username: string;
     password: string;
     host: string;
-    port: number;
+    port: number | string;
   }
 ) {
   const rpc = new AsyncRPC(creds.username, creds.password, creds.host, creds.port);
@@ -148,7 +149,7 @@ export async function transactions(
     username: string;
     password: string;
     host: string;
-    port: number;
+    port: number | string;
   }
 ) {
   const rpc = new AsyncRPC(creds.username, creds.password, creds.host, creds.port);
@@ -234,7 +235,7 @@ if (require.main === module)
       chain: process.env.CHAIN || 'BTC',
       network: process.env.NETWORK || 'testnet'
     };
-    const creds = config.chains[info.chain][info.network].rpc;
+    const creds = (config.chains[info.chain][info.network] as IUtxoNetworkConfig).rpc;
 
     await Storage.start({});
     logger.info('verifying blocks');
@@ -243,6 +244,6 @@ if (require.main === module)
     await transactions(info, creds);
     process.exit();
   })().catch(err => {
-    logger.error(err);
+    logger.error('%o', err);
     process.exit(1);
   });
