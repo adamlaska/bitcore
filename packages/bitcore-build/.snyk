@@ -1,0 +1,61 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.1
+ignore: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  SNYK-JS-LODASH-567746:
+    - webdriverio > archiver > archiver-utils > lodash:
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: webdriverio > archiver > archiver-utils > lodash
+    - webdriverio > archiver > zip-stream > archiver-utils > lodash:
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: webdriverio > archiver > zip-stream > archiver-utils > lodash
+    - '@wdio/cli > webdriverio > archiver > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: '@wdio/cli > webdriverio > archiver > archiver-utils > lodash'
+    - '@wdio/cli > webdriverio > archiver > zip-stream > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          @wdio/cli > webdriverio > archiver > zip-stream > archiver-utils >
+          lodash
+    - '@wdio/browser-runner > @wdio/runner > webdriverio > archiver > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          @wdio/browser-runner > @wdio/runner > webdriverio > archiver >
+          archiver-utils > lodash
+    - '@wdio/browser-runner > @wdio/runner > webdriverio > archiver > zip-stream > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          @wdio/browser-runner > @wdio/runner > webdriverio > archiver >
+          zip-stream > archiver-utils > lodash
+    - '@wdio/browser-runner > @wdio/local-runner > @wdio/runner > webdriverio > archiver > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          @wdio/browser-runner > @wdio/local-runner > @wdio/runner > webdriverio
+          > archiver > archiver-utils > lodash
+    - '@wdio/browser-runner > @wdio/local-runner > @wdio/runner > webdriverio > archiver > zip-stream > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          @wdio/browser-runner > @wdio/local-runner > @wdio/runner > webdriverio
+          > archiver > zip-stream > archiver-utils > lodash
+    - '@wdio/browser-runner > @wdio/local-runner > @wdio/runner > @wdio/globals > webdriverio > archiver > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          @wdio/browser-runner > @wdio/local-runner > @wdio/runner >
+          @wdio/globals > webdriverio > archiver > archiver-utils > lodash
+    - '@wdio/browser-runner > @wdio/local-runner > @wdio/runner > @wdio/globals > webdriverio > archiver > zip-stream > archiver-utils > lodash':
+        patched: '2025-07-15T02:06:00.978Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          @wdio/browser-runner > @wdio/local-runner > @wdio/runner >
+          @wdio/globals > webdriverio > archiver > zip-stream > archiver-utils >
+          lodash
