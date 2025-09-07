@@ -48,7 +48,7 @@
     "bitcore-lib-cash": "^10.10.5",
     "bitcore-lib-doge": "^10.10.5",
     "bitcore-lib-ltc": "^10.10.5",
-    "compression": "1.7.4",
+    "compression": "1.8.1",
     "cors": "2.8.5",
     "crypto-wallet-core": "^10.10.15",
     "email-validator": "1.2.3",
