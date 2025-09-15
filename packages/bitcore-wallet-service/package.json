@@ -38,7 +38,9 @@
     "lint": "tslint -c ../../tslint.json 'src/**/*.ts'",
     "fix": "tslint --fix -c ../../tslint.json 'src/**/*.ts'",
     "update:stats": "npm run clean && npm run tsc && chmod +x ./ts_build/updatestats/updatestats.js && ./ts_build/updatestats/updatestats.js ",
-    "clean:fiatrates": "npm run clean && npm run tsc && chmod +x ./ts_build/cleanfiatrates/cleanfiatrates.js && ./ts_build/cleanfiatrates/cleanfiatrates.js "
+    "clean:fiatrates": "npm run clean && npm run tsc && chmod +x ./ts_build/cleanfiatrates/cleanfiatrates.js && ./ts_build/cleanfiatrates/cleanfiatrates.js ",
+    "prepublish": "npm run snyk-protect",
+    "snyk-protect": "snyk-protect"
   },
   "dependencies": {
     "@sendgrid/mail": "6.5.4",
@@ -75,7 +77,8 @@
     "source-map-support": "0.5.16",
     "sticky-session": "0.1.0",
     "uuid": "3.4.0",
-    "winston": "3.3.3"
+    "winston": "3.3.3",
+    "@snyk/protect": "latest"
   },
   "devDependencies": {
     "@types/async": "^2.4.1",
@@ -91,7 +94,7 @@
     "mocha": "^5.2.0",
     "mocha-lcov-reporter": "^1.3.0",
     "proxyquire": "^1.7.2",
-    "sinon": "^7.1.1",
+    "sinon": "^16.1.2",
     "supertest": "*",
     "ts-node": "^8.0.3",
     "tslint": "^5.14.0",
@@ -113,5 +116,6 @@
       "email": "ematiu@gmail.com"
     }
   ],
-  "gitHead": "e091d99915d099863ad3e78dbe867aa7780191e4"
+  "gitHead": "e091d99915d099863ad3e78dbe867aa7780191e4",
+  "snyk": true
 }
