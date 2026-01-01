@@ -43,7 +43,7 @@
     "cp:templates": "cp -r ./templates ./ts_build/templates"
   },
   "dependencies": {
-    "@sendgrid/mail": "6.5.4",
+    "@sendgrid/mail": "7.0.0",
     "abi-decoder": "2.4.0",
     "async": "0.9.2",
     "bitcore-tss": "^11.4.5",
@@ -51,7 +51,7 @@
     "cors": "2.8.5",
     "crypto-wallet-core": "^11.4.5",
     "email-validator": "1.2.3",
-    "express": "4.19.2",
+    "express": "4.22.0",
     "express-rate-limit": "2.14.2",
     "inherits": "2.0.4",
     "istanbul": "0.4.5",
