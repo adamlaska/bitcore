@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "async": "2.5.0",
-    "bcrypt": "5.1.0",
+    "bcrypt": "6.0.0",
     "bitcore-mnemonic": "^11.4.5",
     "commander": "11.1.0",
     "crypto-wallet-core": "^11.5.0",
