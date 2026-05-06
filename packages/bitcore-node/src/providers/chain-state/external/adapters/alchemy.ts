@@ -255,9 +255,6 @@ export class AlchemyAdapter implements IIndexedAPIAdapter {
       blockHash: '',
       blockTime: safeBlockTime,
       blockTimeNormalized: safeBlockTime,
-      // transfer.value is a decimal display value; rawContract.value is the
-      // canonical hex amount in wei (or smallest token unit) for both native
-      // and ERC20 categories.
       value: BigInt(transfer.rawContract?.value || 0).toString(),
       gasLimit: 0,
       gasPrice: 0,
