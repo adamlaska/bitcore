@@ -31,8 +31,8 @@ export function loadModules(params: Partial<ChainNetwork> = {}) {
       }
       logger.info(`Registering module for ${chain}:${network}: ${modulePath}`);
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Module = require(modulePath).default || require(modulePath);
-      new Module(chain, network, config);
+      const register: ({ chain, network }: ChainNetwork) => void = require(modulePath).default;
+      register({ chain, network });
     }
   }
 }
