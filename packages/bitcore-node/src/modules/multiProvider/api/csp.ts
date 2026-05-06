@@ -1,6 +1,7 @@
 import { PassThrough, Readable } from 'stream';
 import { LRUCache } from 'lru-cache';
 import logger from '../../../logger';
+import { CacheStorage } from '../../../models/cache';
 import { WalletAddressStorage } from '../../../models/walletAddress';
 import { BaseEVMStateProvider } from '../../../providers/chain-state/evm/api/csp';
 import { EVMBlockStorage } from '../../../providers/chain-state/evm/models/block';
@@ -12,15 +13,19 @@ import { ExternalApiStream } from '../../../providers/chain-state/external/strea
 import { Config } from '../../../services/config';
 import {
   GetBlockBeforeTimeParams,
+  GetBlockParams,
   StreamAddressUtxosParams,
+  StreamBlocksParams,
   StreamTransactionParams,
   StreamWalletTransactionsParams
 } from '../../../types/namespaces/ChainStateProvider';
 import { normalizeChainNetwork } from '../../../utils';
+import { ReadableWithEventPipe } from '../../../utils/streamWithEventPipe';
+import type { MongoBound } from '../../../models/base';
 import type {
   BuildWalletTxsStreamParams
 } from '../../../providers/chain-state/evm/api/csp';
-import type { EVMTransactionJSON } from '../../../providers/chain-state/evm/types';
+import type { EVMTransactionJSON, IEVMBlock } from '../../../providers/chain-state/evm/types';
 import type { IIndexedAPIAdapter } from '../../../providers/chain-state/external/adapters/IIndexedAPIAdapter';
 import type { IBlock } from '../../../types/Block';
 import type { IMultiProviderConfig } from '../../../types/Config';
@@ -34,6 +39,8 @@ interface ProviderWithHealth {
 export class MultiProviderEVMStateProvider extends BaseEVMStateProvider {
   private providersByNetwork: Map<string, ProviderWithHealth[]> = new Map();
   blockAtTimeCache: { [key: string]: LRUCache<string, IBlock> } = {};
+  private localTipCache: Map<string, { tip: IBlock; fetchedAtMs: number }> = new Map();
+  private static readonly LOCAL_TIP_TTL_MS = 5_000;
 
   constructor(chain: string = 'ETH') {
     super(chain);
@@ -450,6 +457,110 @@ export class MultiProviderEVMStateProvider extends BaseEVMStateProvider {
       iterations++;
     }
     return low;
+  }
+
+  // @override
+  async getLocalTip({ chain, network }): Promise<IBlock> {
+    const key = normalizeChainNetwork(chain || this.chain, network);
+    const cached = this.localTipCache.get(key);
+    if (cached && Date.now() - cached.fetchedAtMs <= MultiProviderEVMStateProvider.LOCAL_TIP_TTL_MS) {
+      return cached.tip;
+    }
+    const { web3 } = await this.getWeb3(network, { type: 'realtime' });
+    const rawBlock = await web3.eth.getBlock('latest');
+    if (!rawBlock) {
+      throw new Error(`MultiProvider [${this.chain}:${network}]: realtime node returned no latest block`);
+    }
+    const tip = EVMBlockStorage.convertRawBlock(this.chain, network, rawBlock);
+    this.localTipCache.set(key, { tip, fetchedAtMs: Date.now() });
+    return tip;
+  }
+
+  // @override
+  async getFee(params) {
+    let { network } = params;
+    const { target = 4, txType } = params;
+    const chain = this.chain;
+    if (network === 'livenet') {
+      network = 'mainnet';
+    }
+    let cacheKey = `getFee-${chain}-${network}-${target}`;
+    if (txType) {
+      cacheKey += `-type${txType}`;
+    }
+
+    return CacheStorage.getGlobalOrRefresh(
+      cacheKey,
+      async () => {
+        const { rpc } = await this.getWeb3(network, { type: 'historical' });
+        const feerate = await rpc.estimateFee({ nBlocks: target, txType });
+        return { feerate: Number(feerate), blocks: target };
+      },
+      CacheStorage.Times.Minute
+    );
+  }
+
+  // @override
+  async streamBlocks(params: StreamBlocksParams) {
+    const { chain, network } = params;
+    const { web3 } = await this.getWeb3(network);
+    const chainId = await this.getChainId({ network });
+    const blockRange = await this.getBlocksRange({ ...params, chainId });
+    const tipHeight = Number(await web3.eth.getBlockNumber());
+    let isReading = false;
+
+    const stream = new ReadableWithEventPipe({
+      objectMode: true,
+      async read() {
+        if (isReading) {
+          return;
+        }
+        isReading = true;
+
+        let block;
+        let nextBlock;
+        try {
+          for (const blockNum of blockRange) {
+            // stage next block in new var so `nextBlock` doesn't get overwritten if needed for `block`
+            const thisNextBlock = parseInt(block?.number) === blockNum + 1 ? block : await web3.eth.getBlock(blockNum + 1);
+            block = parseInt(nextBlock?.number) === blockNum ? nextBlock : await web3.eth.getBlock(blockNum);
+            if (!block) {
+              continue;
+            }
+            nextBlock = thisNextBlock;
+            const convertedBlock = EVMBlockStorage.convertRawBlock(chain, network, block);
+            convertedBlock.nextBlockHash = nextBlock?.hash;
+            convertedBlock.confirmations = tipHeight - Number(block.number) + 1;
+            this.push(convertedBlock);
+          }
+        } catch (e) {
+          logger.error('Error streaming blocks: %o', e);
+        }
+        this.push(null);
+      }
+    });
+
+    return stream;
+  }
+
+  // @override
+  async _getBlocks(params: GetBlockParams) {
+    const { chain, network } = params;
+    const blocks: MongoBound<IEVMBlock>[] = [];
+    const { web3 } = await this.getWeb3(network);
+    const chainId = await this.getChainId({ network });
+    const blockRange = await this.getBlocksRange({ ...params, chainId });
+
+    for (const blockNum of blockRange) {
+      const block = await web3.eth.getBlock(blockNum);
+      const nextBlock = await web3.eth.getBlock(block.number + 1n);
+      const convertedBlock = EVMBlockStorage.convertRawBlock(chain, network, block);
+      convertedBlock.nextBlockHash = nextBlock?.hash!;
+      blocks.push(convertedBlock);
+    }
+
+    const tipHeight = Number(await web3.eth.getBlockNumber());
+    return { tipHeight, blocks };
   }
 
   // @override
