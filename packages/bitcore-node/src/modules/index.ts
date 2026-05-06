@@ -3,7 +3,6 @@ import { Config } from '../services/config';
 import { ChainNetwork } from '../types/ChainNetwork';
 
 export function loadModules(params: Partial<ChainNetwork> = {}) {
-  const internalServices = new Array<object>();
   // Chain names -> module paths map
   const DEFAULT_MODULE_PATHS = {
     BTC: './bitcoin',
@@ -32,8 +31,8 @@ export function loadModules(params: Partial<ChainNetwork> = {}) {
       }
       logger.info(`Registering module for ${chain}:${network}: ${modulePath}`);
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const ModuleClass = require(modulePath).default || require(modulePath);
-      internalServices.push(new ModuleClass(chain, network, config));
+      const Module = require(modulePath).default || require(modulePath);
+      new Module(chain, network, config);
     }
   }
 }

@@ -14,7 +14,7 @@ describe('Modules', function() {
   before(unitBeforeHelper);
   after(unitAfterHelper);
 
-  it.only('should load configured modules correctly', () => {
+  it('should load configured modules correctly', () => {
     const sandbox = sinon.createSandbox();
     sandbox.stub(Config, 'get').returns(mockConfig);
 
