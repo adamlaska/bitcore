@@ -31,7 +31,11 @@ export function loadModules(params: Partial<ChainNetwork> = {}) {
       }
       logger.info(`Registering module for ${chain}:${network}: ${modulePath}`);
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const register: ({ chain, network }: ChainNetwork) => void = require(modulePath).default;
+      const loadedModule = require(modulePath);
+      const register = loadedModule.default ?? loadedModule;
+      if (typeof register !== 'function') {
+        throw new TypeError(`Invalid module for ${chain}:${network} at ${modulePath}: expected a default export or module.exports to be a register function`);
+      }
       register({ chain, network });
     }
   }
