@@ -121,4 +121,6 @@ const validateModules = () => {
   expect(p2pSpy.calledWith('BTC', 'testnet', BitcoinP2PWorker)).to.be.true;
   expect(p2pSpy.calledWith('ETH', 'dev', EthP2pWorker)).to.be.true;
   expect(p2pSpy.callCount).to.equal(2);
+
+  p2pSpy.restore();
 };
