@@ -4,13 +4,15 @@ import { EVMP2pWorker } from '../../providers/chain-state/evm/p2p/p2p';
 import { Api } from '../../services/api';
 import { P2P } from '../../services/p2p';
 import { Verification } from '../../services/verification';
-import { ChainNetwork } from '../../types/ChainNetwork';
+import { RegisterModule } from '../../types/Module';
 import { MATICStateProvider } from './api/csp';
 import { MaticRoutes } from './api/matic-routes';
 
-export default function register({ chain, network }: ChainNetwork) {
+const registerModule: RegisterModule = ({ chain, network }) => {
   P2P.register(chain, network, EVMP2pWorker);
   ChainStateProvider.registerService(chain, network, new MATICStateProvider());
   Api.app.use(MaticRoutes);
   Verification.register(chain, network, EVMVerificationPeer);
-}
+};
+
+export default registerModule;
