@@ -111,16 +111,17 @@ const mockConfig = {
 
 const validateModules = () => {
   const p2pSpy = sinon.spy(P2P, 'register');
+  try {
+    expect(p2pSpy.calledWith('BTC', 'testnet', BitcoinP2PWorker)).to.be.false;
+    expect(p2pSpy.calledWith('ETH', 'dev', EthP2pWorker)).to.be.false;
+    expect(p2pSpy.callCount).to.equal(0);
 
-  expect(p2pSpy.calledWith('BTC', 'testnet', BitcoinP2PWorker)).to.be.false;
-  expect(p2pSpy.calledWith('ETH', 'dev', EthP2pWorker)).to.be.false;
-  expect(p2pSpy.callCount).to.equal(0);
+    loadModules(); // Re-load modules with stubbed Config.get()
 
-  loadModules(); // Re-load modules with stubbed Config.get()
-
-  expect(p2pSpy.calledWith('BTC', 'testnet', BitcoinP2PWorker)).to.be.true;
-  expect(p2pSpy.calledWith('ETH', 'dev', EthP2pWorker)).to.be.true;
-  expect(p2pSpy.callCount).to.equal(2);
-
-  p2pSpy.restore();
+    expect(p2pSpy.calledWith('BTC', 'testnet', BitcoinP2PWorker)).to.be.true;
+    expect(p2pSpy.calledWith('ETH', 'dev', EthP2pWorker)).to.be.true;
+    expect(p2pSpy.callCount).to.equal(2);
+  } finally {
+    p2pSpy.restore();
+  }
 };
