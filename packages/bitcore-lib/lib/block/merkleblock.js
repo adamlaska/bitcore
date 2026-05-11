@@ -106,7 +106,7 @@ MerkleBlock.prototype.toBufferWriter = function toBufferWriter(bw) {
     bw.write(Buffer.from(this.hashes[i], 'hex'));
   }
   bw.writeVarintNum(this.flags.length);
-  for (i = 0; i < this.flags.length; i++) {
+  for (let i = 0; i < this.flags.length; i++) {
     bw.writeUInt8(this.flags[i]);
   }
   return bw;
@@ -205,7 +205,7 @@ MerkleBlock.prototype._traverseMerkleTree = function traverseMerkleTree(depth, p
   opts.txs = opts.txs || [];
   opts.flagBitsUsed = opts.flagBitsUsed || 0;
   opts.hashesUsed = opts.hashesUsed || 0;
-  const checkForTxs = checkForTxs || false;
+  checkForTxs = checkForTxs || false;
 
   if (opts.flagBitsUsed > this.flags.length * 8) {
     return null;
@@ -296,7 +296,7 @@ MerkleBlock._fromBufferReader = function _fromBufferReader(br) {
   }
   const numFlags = br.readVarintNum();
   info.flags = [];
-  for (i = 0; i < numFlags; i++) {
+  for (let i = 0; i < numFlags; i++) {
     info.flags.push(br.readUInt8());
   }
   return info;

@@ -470,7 +470,7 @@ Address.fromScriptHash = function(hash, network, type) {
   if (Address.isPayToWitnessScriptHash(type) && hash.length !== 32) {
     throw new TypeError('Address hashbuffer must be exactly 32 bytes for v0 witness script hash.');
   }
-  let type = type || Address.PayToScriptHash;
+  type = type || Address.PayToScriptHash;
   return new Address(info.hashBuffer, network, type);
 };
 
@@ -494,7 +494,7 @@ Address.payingTo = function(script, network, type) {
   } else {
     hash = Hash.sha256ripemd160(script.toBuffer());
   }
-  let type = type || Address.PayToScriptHash;
+  type = type || Address.PayToScriptHash;
   return Address.fromScriptHash(hash, network, type);
 };
 
