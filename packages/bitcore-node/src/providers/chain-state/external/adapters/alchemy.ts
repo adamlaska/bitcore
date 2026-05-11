@@ -317,7 +317,7 @@ export class AlchemyAssetTransferStream extends ExternalApiStream {
       const { address, args, category, contractAddresses } = this.alchemyParams;
 
       const baseParams: any = {
-        category: category || ['external', 'internal', 'erc20'],
+        category: category || ['external', 'internal'],
         order: (args.order || 'DESC').toLowerCase() === 'asc' ? 'asc' : 'desc',
         maxCount: `0x${(args.pageSize || 100).toString(16)}`,
         withMetadata: true
