@@ -46,7 +46,7 @@
     "@bitpay-labs/bitcore-logging": "^11.8.1",
     "@bitpay-labs/bitcore-tss": "^11.8.1",
     "@bitpay-labs/crypto-wallet-core": "^11.8.1",
-    "@sendgrid/mail": "6.5.4",
+    "@sendgrid/mail": "7.0.0",
     "abi-decoder": "2.4.0",
     "async": "0.9.2",
     "compression": "1.7.4",
@@ -73,7 +73,7 @@
     "socket.io-client": "4.8.1",
     "source-map-support": "0.5.16",
     "sticky-session": "0.1.0",
-    "uuid": "3.4.0"
+    "uuid": "14.0.0"
   },
   "devDependencies": {
     "@types/async": "^2.4.1",
