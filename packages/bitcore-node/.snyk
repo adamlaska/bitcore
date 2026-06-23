@@ -1,0 +1,32 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.1
+ignore: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  SNYK-JS-LODASH-567746:
+    - bitcore-client > async > lodash:
+        patched: '2025-10-02T20:05:24.244Z'
+        id: SNYK-JS-LODASH-567746
+        path: bitcore-client > async > lodash
+    - crypto-wallet-core > xrpl > lodash:
+        patched: '2025-10-02T20:05:24.244Z'
+        id: SNYK-JS-LODASH-567746
+        path: crypto-wallet-core > xrpl > lodash
+    - bitcore-wallet-client > preconditions > lodash:
+        patched: '2025-10-02T20:05:24.244Z'
+        id: SNYK-JS-LODASH-567746
+        path: bitcore-wallet-client > preconditions > lodash
+    - bitcore-client > crypto-wallet-core > xrpl > lodash:
+        patched: '2025-10-02T20:05:24.244Z'
+        id: SNYK-JS-LODASH-567746
+        path: bitcore-client > crypto-wallet-core > xrpl > lodash
+    - bitcore-wallet-client > crypto-wallet-core > xrpl > lodash:
+        patched: '2025-10-02T20:05:24.244Z'
+        id: SNYK-JS-LODASH-567746
+        path: bitcore-wallet-client > crypto-wallet-core > xrpl > lodash
+    - bitcore-client > request-promise-native > request-promise-core > lodash:
+        patched: '2025-10-02T20:05:24.244Z'
+        id: SNYK-JS-LODASH-567746
+        path: >-
+          bitcore-client > request-promise-native > request-promise-core >
+          lodash
