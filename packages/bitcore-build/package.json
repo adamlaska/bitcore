@@ -44,7 +44,7 @@
   "dependencies": {
     "@kollavarsham/gulp-coveralls": "^0.2.2",
     "@wdio/browser-runner": "^9.12.0",
-    "@wdio/cli": "^9.12.0",
+    "@wdio/cli": "^9.18.0",
     "@wdio/spec-reporter": "^9.11.0",
     "brfs": "^2.0.1",
     "browserify": "^16.2.3",
